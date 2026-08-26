@@ -25,7 +25,7 @@ export const EXCHANGE_CURRENCIES = [
 export type ExchangeCurrency = (typeof EXCHANGE_CURRENCIES)[number]["value"];
 
 export const DEFAULT_EXCHANGE_CURRENCY: ExchangeCurrency = "USD";
-export const DEFAULT_MARKET_ITEM_NAME = "명예의 파편 주머니(대)";
+export const DEFAULT_MARKET_ITEM_NAME = "파괴강석";
 
 const EXCHANGE_CURRENCY_VALUES = new Set<string>(EXCHANGE_CURRENCIES.map(({ value }) => value));
 
