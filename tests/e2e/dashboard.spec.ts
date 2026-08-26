@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 const RUN_ID = process.env.SCREENSHOT_RUN_ID
   ?? new Date().toISOString().replace(/[:.]/g, "-");
 const SCREENSHOT_DIR = `docs/검증스크린샷/${RUN_ID}`;
+const EXPECT_LIVE_PROVIDERS = process.env.EXPECT_LIVE_PROVIDERS === "true";
 
 test("상태별 fixture 카드 5개와 투명성 필드를 표시한다", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });
@@ -37,11 +38,13 @@ test("실시간 대시보드가 자체 API만 호출하고 5개 위젯을 유지
   await page.goto("/");
   await expect(page.locator(".widget-card")).toHaveCount(5);
   await expect(page.getByRole("button", { name: "전체 새로고침" })).toBeVisible();
+  await expect(page.getByLabel("통화 선택")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "아이템 검색" })).toBeVisible();
   await page.waitForTimeout(2_500);
   expect(externalBrowserRequests).toEqual([]);
-  const unexpectedConsoleErrors = consoleErrors.filter(
-    (message) => !message.includes("server responded with a status of 503"),
-  );
+  const unexpectedConsoleErrors = EXPECT_LIVE_PROVIDERS
+    ? consoleErrors
+    : consoleErrors.filter((message) => !message.includes("server responded with a status of 503"));
   expect(unexpectedConsoleErrors).toEqual([]);
 
   const bodyText = await page.locator("body").innerText();
@@ -51,7 +54,14 @@ test("실시간 대시보드가 자체 API만 호출하고 5개 위젯을 유지
 });
 
 test("공개 API 계약과 키 비노출 응답을 검증한다", async ({ request }) => {
-  for (const endpoint of ["/api/widgets/upbit-ticker", "/api/widgets/status"]) {
+  const publicEndpoints = ["/api/widgets/upbit-ticker", "/api/widgets/status"];
+  const protectedEndpoints = [
+    "/api/widgets/lostark-notices",
+    "/api/widgets/lostark-market?itemName=%ED%8C%8C%EA%B4%B4%EA%B0%95%EC%84%9D",
+    "/api/widgets/exchange-rate?currency=USD",
+  ];
+
+  for (const endpoint of [...publicEndpoints, ...(EXPECT_LIVE_PROVIDERS ? protectedEndpoints : [])]) {
     const response = await request.get(endpoint);
     expect(response.ok()).toBeTruthy();
     const payload = await response.json();
@@ -61,7 +71,7 @@ test("공개 API 계약과 키 비노출 응답을 검증한다", async ({ reque
     expect(payload.fetchedAt).toBeTruthy();
   }
 
-  for (const endpoint of ["/api/widgets/lostark-notices", "/api/widgets/lostark-market", "/api/widgets/exchange-rate"]) {
+  for (const endpoint of protectedEndpoints) {
     const response = await request.get(endpoint);
     const body = await response.text();
     expect(body).not.toMatch(/Authorization\s*:\s*bearer/i);

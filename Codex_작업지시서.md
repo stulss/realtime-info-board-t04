@@ -149,7 +149,7 @@ export type WidgetData<T> = {
 - [x] 2단계: Upbit·GitHub Status 공개 API 연동
 - [x] 3~4단계: 수출입은행·Lost Ark adapter, 공통 오류 처리, 거래장 options 캐시
 - [x] 5단계: 위젯 TTL, in-flight dedupe, stale fallback, 전체/개별 갱신과 쿨다운
-- [x] 6단계 로컬: lint, typecheck, 12개 단위 테스트, production build, 5개 E2E, 누적 스크린샷
+- [x] 6단계 로컬: lint, typecheck, 19개 단위 테스트, production build, 5개 E2E, 누적 스크린샷
 - [ ] 6단계 배포: 실제 API 키 등록, Vercel 배포, 배포 URL Network 탭 최종 확인
 
 검증 증거와 실행 이력은 `docs/검증스크린샷/README.md`, 상세 인수인계는 `작업내역_체크리스트.md`를 기준으로 한다.

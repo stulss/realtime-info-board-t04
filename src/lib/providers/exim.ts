@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "@/types/widget";
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
+import { DEFAULT_EXCHANGE_CURRENCY, type ExchangeCurrency } from "@/lib/widget-options";
 
 type EximRate = {
   result: number;
@@ -25,7 +26,7 @@ function searchDate(daysAgo = 0): string {
     .replaceAll("-", "");
 }
 
-export async function fetchExchangeRate(): Promise<WidgetPayload> {
+export async function fetchExchangeRate(currency: ExchangeCurrency = DEFAULT_EXCHANGE_CURRENCY): Promise<WidgetPayload> {
   const apiKey = process.env.EXIM_SERVICE_KEY;
   if (!apiKey) throw new ProviderHttpError("EXIM_SERVICE_KEY 환경변수 설정이 필요합니다.", 500);
 
@@ -52,17 +53,17 @@ export async function fetchExchangeRate(): Promise<WidgetPayload> {
 
     matched = rates?.find((rate) =>
       rate.result === 1
-      && rate.cur_unit === (process.env.EXIM_CURRENCY ?? "USD")
+      && rate.cur_unit?.trim().toUpperCase() === currency
       && typeof rate.deal_bas_r === "string",
     );
   }
 
-  if (!matched) throw new ProviderHttpError("최근 7일 이내 고시 환율을 찾지 못했습니다.", 404);
+  if (!matched) throw new ProviderHttpError(`최근 7일 이내 ${currency} 고시 환율을 찾지 못했습니다.`, 404);
   const fetchedAt = new Date().toISOString();
   return {
     value: {
       headline: `${matched.deal_bas_r}원`,
-      subline: `${matched.cur_unit} 매매기준율`,
+      subline: `${currency} 매매기준율`,
       details: [{ label: "고시일", value: publishedDate }],
     },
     status: "ok",

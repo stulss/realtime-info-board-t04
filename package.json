@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -29,7 +32,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
-    "eslint": "latest",
+    "eslint": "9.39.5",
     "eslint-config-next": "latest",
     "jsdom": "latest",
     "tailwindcss": "latest",

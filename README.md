@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-브라우저에서 `http://localhost:3000`을 연다. 로스트아크·환율 실데이터는 `.env.example`을 참고해 `.env.local`에 서버 전용 키를 설정해야 하며, `NEXT_PUBLIC_` 접두사는 사용하지 않는다.
+브라우저에서 `http://localhost:3000`을 연다. 로스트아크·환율 실데이터는 `.env.example`을 참고해 `.env.local`에 서버 전용 키 두 개만 설정해야 하며, `NEXT_PUBLIC_` 접두사는 사용하지 않는다. 거래장 아이템은 검색창에서 입력하고 환율 통화는 목록에서 선택한다.
 
 ## 품질 명령
 ```bash
@@ -49,4 +49,4 @@ docs/검증스크린샷/       실행별 누적 스크린샷 증거
 ```
 
 ## 진행 상태
-0~5단계 구현과 로컬 6단계 검증을 완료했다. 공개 API(Upbit·GitHub Status)는 실제 값이 표시되며, 키 기반 위젯은 환경변수 미설정 시 원인을 숨기지 않고 조회 실패 상태를 표시한다. 남은 작업은 실제 키 등록, Vercel 배포, 배포 URL의 Network 탭 최종 확인이다.
+0~5단계 구현과 로컬 6단계 검증을 완료했다. Vercel 배포 주소는 `https://realtime-info-board.vercel.app/`이며, 거래장 검색·환율 통화 선택 변경의 자동 재배포와 실데이터 최종 확인을 진행 중이다.

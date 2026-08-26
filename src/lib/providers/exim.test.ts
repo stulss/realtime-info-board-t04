@@ -9,20 +9,19 @@ afterEach(() => {
 describe("한국수출입은행 환율 adapter", () => {
   it("신규 oapi 도메인을 호출하고 선택 통화를 공통 계약으로 정규화한다", async () => {
     vi.stubEnv("EXIM_SERVICE_KEY", "test-service-key");
-    vi.stubEnv("EXIM_CURRENCY", "USD");
     const fetchMock = vi.fn().mockResolvedValue(Response.json([
-      { result: 1, cur_unit: "USD", cur_nm: "미국 달러", deal_bas_r: "1,340.50" },
+      { result: 1, cur_unit: " JPY(100) ", cur_nm: "일본 엔", deal_bas_r: "920.50" },
     ]));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await fetchExchangeRate();
+    const result = await fetchExchangeRate("JPY(100)");
     const requestedUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
 
     expect(requestedUrl.origin).toBe("https://oapi.koreaexim.go.kr");
     expect(requestedUrl.searchParams.get("authkey")).toBe("test-service-key");
     expect(requestedUrl.searchParams.get("data")).toBe("AP01");
-    expect(result.value?.headline).toBe("1,340.50원");
-    expect(result.value?.subline).toBe("USD 매매기준율");
+    expect(result.value?.headline).toBe("920.50원");
+    expect(result.value?.subline).toBe("JPY(100) 매매기준율");
     expect(result.source.endpointTemplate).not.toContain("test-service-key");
   });
 

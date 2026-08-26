@@ -2,8 +2,15 @@
 
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { WidgetPayload } from "@/types/widget";
+import {
+  DEFAULT_EXCHANGE_CURRENCY,
+  DEFAULT_MARKET_ITEM_NAME,
+  EXCHANGE_CURRENCIES,
+  normalizeMarketItemName,
+  type ExchangeCurrency,
+} from "@/lib/widget-options";
 import { WidgetCard } from "./widget-card";
 
 const WIDGETS = [
@@ -14,17 +21,25 @@ const WIDGETS = [
   { id: "status", name: "GitHub 서비스 상태", icon: "◉", interval: 5 * 60_000 },
 ] as const;
 
-async function fetchWidget(id: string): Promise<WidgetPayload> {
-  const response = await fetch(`/api/widgets/${id}`);
+async function fetchWidget(requestPath: string): Promise<WidgetPayload> {
+  const response = await fetch(requestPath);
   const data = (await response.json()) as WidgetPayload;
   if (!response.ok && !data.lastError) throw new Error("위젯 응답 형식이 올바르지 않습니다.");
   return data;
 }
 
-function DashboardWidget({ widget }: { widget: (typeof WIDGETS)[number] }) {
+function DashboardWidget({
+  widget,
+  requestPath = `/api/widgets/${widget.id}`,
+  controls,
+}: {
+  widget: (typeof WIDGETS)[number];
+  requestPath?: string;
+  controls?: ReactNode;
+}) {
   const query = useQuery({
-    queryKey: ["widget", widget.id],
-    queryFn: () => fetchWidget(widget.id),
+    queryKey: ["widget", widget.id, requestPath],
+    queryFn: () => fetchWidget(requestPath),
     refetchInterval: () =>
       typeof document !== "undefined" && document.visibilityState === "hidden"
         ? widget.interval * 4
@@ -47,6 +62,7 @@ function DashboardWidget({ widget }: { widget: (typeof WIDGETS)[number] }) {
       data={query.data ?? fallback}
       isRefreshing={query.isFetching}
       onRefresh={() => void query.refetch()}
+      controls={controls}
     />
   );
 }
@@ -59,6 +75,9 @@ export function Dashboard() {
     return savedTheme === "dark" || (!savedTheme && window.matchMedia("(prefers-color-scheme: dark)").matches);
   });
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
+  const [currency, setCurrency] = useState<ExchangeCurrency>(DEFAULT_EXCHANGE_CURRENCY);
+  const [marketDraft, setMarketDraft] = useState(DEFAULT_MARKET_ITEM_NAME);
+  const [marketItem, setMarketItem] = useState(DEFAULT_MARKET_ITEM_NAME);
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
@@ -81,6 +100,14 @@ export function Dashboard() {
     await queryClient.invalidateQueries({ queryKey: ["widget"] });
     setIsRefreshingAll(false);
   }
+
+  function searchMarket(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMarketItem(normalizeMarketItemName(marketDraft));
+  }
+
+  const marketWidget = WIDGETS.find(({ id }) => id === "lostark-market")!;
+  const exchangeWidget = WIDGETS.find(({ id }) => id === "exchange-rate")!;
 
   return (
     <main className="dashboard-shell">
@@ -113,7 +140,56 @@ export function Dashboard() {
       </section>
 
       <section className="widget-grid" aria-label="실시간 정보 위젯">
-        {WIDGETS.map((widget) => <DashboardWidget key={widget.id} widget={widget} />)}
+        {WIDGETS.map((widget) => {
+          if (widget.id === "lostark-market") {
+            return (
+              <DashboardWidget
+                key={widget.id}
+                widget={marketWidget}
+                requestPath={`/api/widgets/lostark-market?itemName=${encodeURIComponent(marketItem)}`}
+                controls={(
+                  <form className="widget-search" onSubmit={searchMarket} aria-label="로스트아크 거래장 아이템 검색">
+                    <label htmlFor="market-item-name">아이템 검색</label>
+                    <div>
+                      <input
+                        id="market-item-name"
+                        value={marketDraft}
+                        onChange={(event) => setMarketDraft(event.target.value)}
+                        maxLength={50}
+                        autoComplete="off"
+                      />
+                      <button type="submit">검색</button>
+                    </div>
+                  </form>
+                )}
+              />
+            );
+          }
+          if (widget.id === "exchange-rate") {
+            return (
+              <DashboardWidget
+                key={widget.id}
+                widget={exchangeWidget}
+                requestPath={`/api/widgets/exchange-rate?currency=${encodeURIComponent(currency)}`}
+                controls={(
+                  <label className="widget-select" htmlFor="exchange-currency">
+                    <span>통화 선택</span>
+                    <select
+                      id="exchange-currency"
+                      value={currency}
+                      onChange={(event) => setCurrency(event.target.value as ExchangeCurrency)}
+                    >
+                      {EXCHANGE_CURRENCIES.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              />
+            );
+          }
+          return <DashboardWidget key={widget.id} widget={widget} />;
+        })}
       </section>
 
       <footer className="page-footer">

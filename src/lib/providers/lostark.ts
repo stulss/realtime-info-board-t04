@@ -1,11 +1,13 @@
 import type { WidgetPayload } from "@/types/widget";
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
+import { DEFAULT_MARKET_ITEM_NAME } from "@/lib/widget-options";
 
 const LOSTARK_BASE_URL = "https://developer-lostark.game.onstove.com";
 const MARKET_OPTIONS_TTL_MS = 24 * 60 * 60_000;
 
 type LostArkNotice = { Title: string; Date: string; Type: string; Link: string };
-type MarketOptions = { Categories?: Array<{ Code: number; CodeName: string }> };
+type MarketCategory = { Code: number; CodeName: string; Subs?: MarketCategory[] };
+type MarketOptions = { Categories?: MarketCategory[] };
 type MarketItem = { Name: string; CurrentMinPrice: number; RecentPrice: number; YDayAvgPrice: number };
 type MarketResponse = { Items?: MarketItem[]; TotalCount: number };
 
@@ -73,18 +75,42 @@ export async function fetchLostArkNotices(): Promise<WidgetPayload> {
   };
 }
 
-export async function fetchLostArkMarket(): Promise<WidgetPayload> {
+function marketCategoryCodes(options: MarketOptions): number[] {
+  const codes = options.Categories
+    ?.map(({ Code }) => Code)
+    .filter((code) => Number.isInteger(code) && code > 0) ?? [];
+  return [...new Set([50000, ...codes])];
+}
+
+async function searchMarketCategory(categoryCode: number, itemName: string): Promise<MarketResponse> {
+  return fetchJson<MarketResponse>(`${LOSTARK_BASE_URL}/markets/items`, {
+    method: "POST",
+    headers: lostArkHeaders(),
+    body: JSON.stringify({
+      Sort: "CURRENT_MIN_PRICE",
+      CategoryCode: categoryCode,
+      ItemTier: null,
+      ItemGrade: null,
+      ItemName: itemName,
+      CharacterClass: null,
+      PageNo: 1,
+      SortCondition: "ASC",
+    }),
+    retries: 1,
+  });
+}
+
+export async function fetchLostArkMarket(itemName = DEFAULT_MARKET_ITEM_NAME): Promise<WidgetPayload> {
   const options = await getMarketOptions();
   if (!options || typeof options !== "object") throw new ProviderHttpError("거래장 옵션 응답이 올바르지 않습니다.", 502);
 
-  const itemName = process.env.LOSTARK_MARKET_ITEM_NAME?.trim() || "명예의 파편 주머니(대)";
-  const response = await fetchJson<MarketResponse>(`${LOSTARK_BASE_URL}/markets/items`, {
-    method: "POST",
-    headers: lostArkHeaders(),
-    body: JSON.stringify({ Sort: "CURRENT_MIN_PRICE", CategoryCode: 0, ItemName: itemName, PageNo: 1, SortCondition: "ASC" }),
-    retries: 1,
-  });
-  const item = response.Items?.[0];
+  let item: MarketItem | undefined;
+  for (const categoryCode of marketCategoryCodes(options)) {
+    const response = await searchMarketCategory(categoryCode, itemName);
+    item = response.Items?.find((candidate) => candidate.Name === itemName) ?? response.Items?.[0];
+    if (item) break;
+  }
+
   if (!item) throw new ProviderHttpError(`거래장에서 '${itemName}' 항목을 찾지 못했습니다.`, 404);
   const fetchedAt = new Date().toISOString();
   const change = item.YDayAvgPrice > 0 ? ((item.CurrentMinPrice - item.YDayAvgPrice) / item.YDayAvgPrice) * 100 : 0;

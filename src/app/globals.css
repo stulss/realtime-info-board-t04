@@ -98,7 +98,16 @@ a { color: inherit; }
 :root[data-theme="dark"] .status-maintenance,
 :root[data-theme="dark"] .status-error { background: #282a24; }
 
-.widget-card__value { display: flex; flex-direction: column; gap: 6px; margin: 58px 0 24px; }
+.widget-card__controls { margin-top: 22px; }
+.widget-search, .widget-select { display: flex; flex-direction: column; gap: 7px; }
+.widget-search label, .widget-select > span { color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.widget-search > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.widget-search input, .widget-select select { width: 100%; min-height: 38px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 12px; }
+.widget-search input { min-width: 0; padding: 0 11px; border-radius: 3px 0 0 3px; }
+.widget-search button { padding: 0 14px; border: 1px solid var(--ink); border-left: 0; border-radius: 0 3px 3px 0; background: var(--ink); color: var(--paper); font-size: 11px; font-weight: 800; cursor: pointer; }
+.widget-select select { padding: 0 10px; border-radius: 3px; cursor: pointer; }
+
+.widget-card__value { display: flex; flex-direction: column; gap: 6px; margin: 40px 0 24px; }
 .widget-card__value strong { overflow-wrap: anywhere; font-size: clamp(30px, 3vw, 46px); line-height: 1; letter-spacing: -.06em; }
 .widget-card__value span { color: var(--muted); font-size: 12px; }
 .widget-card__details, .widget-card__times { display: grid; grid-template-columns: repeat(2, 1fr); margin: 0; }

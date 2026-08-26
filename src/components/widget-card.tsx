@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { formatAbsoluteTime, formatCountdown, formatRelativeTime } from "@/lib/time";
 import type { WidgetPayload } from "@/types/widget";
 import { StatusBadge } from "./status-badge";
@@ -11,6 +11,7 @@ type WidgetCardProps = {
   data: WidgetPayload;
   isRefreshing?: boolean;
   onRefresh?: () => void;
+  controls?: ReactNode;
 };
 
 function subscribeClock(onStoreChange: () => void): () => void {
@@ -35,7 +36,7 @@ function TimeValue({ label, value, fallback, now }: { label: string; value?: str
   );
 }
 
-export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh }: WidgetCardProps) {
+export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh, controls }: WidgetCardProps) {
   const now = useSyncExternalStore(subscribeClock, getCurrentTime, getServerTime);
   const [cooldownUntil, setCooldownUntil] = useState(0);
 
@@ -61,6 +62,8 @@ export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh }
         </div>
         <StatusBadge status={status} />
       </header>
+
+      {controls && <div className="widget-card__controls">{controls}</div>}
 
       <div className="widget-card__value" aria-live="polite">
         <strong>{data.value?.headline ?? "표시할 데이터 없음"}</strong>
