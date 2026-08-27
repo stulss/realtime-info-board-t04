@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WidgetPayload } from "@/types/widget";
 import { clearWidgetCache, getCachedWidget } from "./cache";
+import { ProviderHttpError } from "./http";
 
 const payload: WidgetPayload = {
   value: { headline: "실제 값" },
@@ -36,5 +37,16 @@ describe("getCachedWidget", () => {
     expect(stale.value?.headline).toBe("실제 값");
     expect(stale.status).toBe("stale");
     expect(stale.lastError?.message).toBe("network down");
+  });
+
+  it("갱신 실패의 장애 종류를 stale 응답에 보존한다", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    await getCachedWidget("kind", 100, async () => payload);
+    now.mockReturnValue(2_000);
+
+    const stale = await getCachedWidget("kind", 100, async () => {
+      throw new ProviderHttpError("limited", 429, undefined, "rate_limited");
+    });
+    expect(stale.lastError?.kind).toBe("rate_limited");
   });
 });

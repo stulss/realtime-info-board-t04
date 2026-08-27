@@ -1,0 +1,24 @@
+--- browser requests ---
+GET https://realtime-info-board.vercel.app/
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/0mnzxqz7zgz81.css
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/25kvgcvbp6c14.js
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/28fkf9f9btak4.js
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/31vkzv30zcm_n.js
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/3vkipwfh56ofy.js
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/turbopack-3z7av2ksglu0y.js
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/1x4k_1u8h9p4p.js
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/0-a8i9rijwz8h.js
+GET https://realtime-info-board.vercel.app/api/widgets/lostark-notices
+GET https://realtime-info-board.vercel.app/api/widgets/lostark-market?itemName=%ED%8C%8C%EA%B4%B4%EA%B0%95%EC%84%9D
+GET https://realtime-info-board.vercel.app/api/widgets/upbit-ticker
+GET https://realtime-info-board.vercel.app/api/widgets/exchange-rate?currency=USD
+GET https://realtime-info-board.vercel.app/api/widgets/status
+GET https://realtime-info-board.vercel.app/verification?_rsc=5CB68i4pnAekjehf
+GET https://realtime-info-board.vercel.app/verification?_rsc=iry2rKY5OPaMfRKR
+GET https://realtime-info-board.vercel.app/_next/static/immutable/chunks/1gzz7-a6gnq_n.js
+
+--- external (non-vercel) requests ---
+(none)
+
+--- secret-like matches in DOM ---
+0 hits

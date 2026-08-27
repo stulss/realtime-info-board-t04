@@ -1,7 +1,7 @@
 # 개인 맞춤형 실시간 정보판 (realtime-info-board)
 
 ## 프로젝트 개요
-로그인 없는 개인용 실시간 정보 대시보드. 모든 위젯이 값과 함께 출처·원천 시각·조회 시각을 항상 표시한다. 근거 문서: 사용자 제공 `personal-realtime-dashboard-strategy-complete.md`.
+로그인 없는 개인용 실시간 정보 대시보드. 모든 위젯이 값과 함께 출처·원천 시각·조회 시각을 표시하며, T04 확장으로 장애 5종·마지막 정상값·Asia/Seoul 일별 기록·이전 대비 비교를 제공한다.
 
 ## 실행 방법
 ```bash
@@ -27,6 +27,7 @@ npm run test:e2e
 - `계획.md` — 단계별 실행 계획과 결정 이유
 - `Codex_작업지시서.md` — 구현 담당자(Codex)용 자기완결형 실행 지시서
 - `docs/00_과제_요구사항_매핑.md` — 요구사항 1:1 매핑
+- `docs/T04_검증_체크리스트.md` — 카드별 완료 여부·장애표·재검산·시간 기록
 - `docs/01_기획.md` — 기술 스택·시스템 구조 개요
 - `docs/05_배포.md` — 배포처 비교·절차
 - `docs/사용자_사전작업_체크리스트.md` — 다음 AI 전에 사용자가 직접 준비할 계정·API 키·승인 범위
@@ -42,6 +43,8 @@ src/app/                 Next.js 화면과 /api/widgets/* Route Handler
 src/components/          Dashboard, WidgetCard, Query Provider
 src/lib/providers/       Upbit, GitHub Status, 수출입은행, Lost Ark adapter
 src/lib/server/          timeout/retry, TTL cache, dedupe, 오류 응답
+src/lib/client/          브라우저 오류 분류·stale/빈 상태 변환
+src/lib/history/         날짜별 중복 방지·이전 대비 계산
 src/types/               WidgetData<T> 공통 계약
 src/fixtures/            상태별 시각 검증 fixture
 tests/e2e/               Playwright 브라우저·보안 검증
@@ -49,4 +52,4 @@ docs/검증스크린샷/       실행별 누적 스크린샷 증거
 ```
 
 ## 진행 상태
-0~5단계 구현, 로컬 검증, Vercel 배포 검증을 완료했다. `https://realtime-info-board.vercel.app/`에서 거래장 검색·환율 통화 선택과 5개 실데이터가 정상이며 브라우저 키 비노출 원격 E2E 5/5를 통과했다.
+기존 0~5단계는 원본 배포에서 검증됐다. T04 확장은 `realtime-info-board-t04` 복사본에서 구현 중이며, 로컬 최종 검증 후 별도 배포 승인을 받아야 공개 완료로 판정한다.

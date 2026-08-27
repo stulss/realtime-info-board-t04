@@ -1,0 +1,2 @@
+https://developer-lostark.game.onstove.com/getting-started
+status=200

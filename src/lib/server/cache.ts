@@ -36,6 +36,7 @@ export async function getCachedWidget(
         status: "stale" as const,
         warning: "최신 조회에 실패해 마지막 성공값을 표시합니다.",
         lastError: {
+          kind: providerError?.kind,
           code: providerError?.status,
           message: error instanceof Error ? error.message : "알 수 없는 조회 오류",
           occurredAt,

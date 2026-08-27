@@ -1,0 +1,154 @@
+{
+  "auditName": "Codex_T04_독립감사_2026-08-27T02-03-29-907Z",
+  "baseUrl": "https://realtime-info-board.vercel.app",
+  "capturedAtUtc": "2026-08-27T02:05:04.928Z",
+  "card1": {
+    "widgetCount": 5,
+    "widgetTexts": [
+      "⚔\n\nLIVE WIDGET\n\n로스트아크 공지\n●\n정상\n8월 27일(목) 로스트아크 임시 점검 완료 안내\n점검 공지 확인\n최근 공지\n72건\n점검 공지\n27건\n\n점검 공지가 있습니다. OpenAPI 접근 불가 상태와는 별도입니다.\n\n원천 시각\nAPI 미제공\n조회 시각\n몇 초 전\n출처\nLost Ark OpenAPI ↗\nGET /news/notices\n14분 56초 후\n↻",
+      "◇\n\nLIVE WIDGET\n\n로스트아크 거래장\n●\n정상\n아이템 검색\n검색\n6 골드\n파괴강석\n최근 거래가\n6 골드\n전일 평균 대비\n-11.8%\n원천 시각\nAPI 미제공\n조회 시각\n몇 초 전\n출처\nLost Ark OpenAPI ↗\nGET /markets/options → POST /markets/items\n4분 56초 후\n↻",
+      "₿\n\nLIVE WIDGET\n\n비트코인\n●\n정상\n₩109,230,000\nBTC / KRW\n24시간\n-0.55%\n원천 시각\n몇 초 전\n조회 시각\n몇 초 전\n출처\nUpbit ↗\nGET /v1/ticker?markets=KRW-BTC\n15초 후\n↻",
+      "₩\n\nLIVE WIDGET\n\n원·달러 고시환율\n●\n정상\n통화 선택\n미국 달러 (USD)\n일본 엔 100 (JPY)\n유로 (EUR)\n중국 위안 (CNH)\n영국 파운드 (GBP)\n호주 달러 (AUD)\n캐나다 달러 (CAD)\n스위스 프랑 (CHF)\n홍콩 달러 (HKD)\n싱가포르 달러 (SGD)\n뉴질랜드 달러 (NZD)\n태국 바트 (THB)\n인도네시아 루피아 100 (IDR)\n말레이시아 링깃 (MYR)\n아랍에미리트 디르함 (AED)\n바레인 디나르 (BHD)\n쿠웨이트 디나르 (KWD)\n사우디 리얄 (SAR)\n덴마크 크로네 (DKK)\n노르웨이 크로네 (NOK)\n스웨덴 크로나 (SEK)\n1,384.6원\nUSD 매매기준율\n고시일\n20260827\n원천 시각\nAPI 미제공\n조회 시각\n몇 초 전\n출처\n한국수출입은행 ↗\nGET https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={REDACTED}&searchdate={YYYYMMDD}&data=AP01\n59분 56초 후\n↻",
+      "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n4분 55초 후\n↻"
+    ],
+    "sourceLinkCount": 5,
+    "sourceLinks": [
+      {
+        "text": "Lost Ark OpenAPI ↗",
+        "href": "https://developer-lostark.game.onstove.com/getting-started",
+        "target": "_blank"
+      },
+      {
+        "text": "Lost Ark OpenAPI ↗",
+        "href": "https://developer-lostark.game.onstove.com/getting-started",
+        "target": "_blank"
+      },
+      {
+        "text": "Upbit ↗",
+        "href": "https://docs.upbit.com/kr/reference/ticker-current",
+        "target": "_blank"
+      },
+      {
+        "text": "한국수출입은행 ↗",
+        "href": "https://www.data.go.kr/data/3068846/openapi.do",
+        "target": "_blank"
+      },
+      {
+        "text": "GitHub Status ↗",
+        "href": "https://www.githubstatus.com/api",
+        "target": "_blank"
+      }
+    ]
+  },
+  "card2": {
+    "sourceOpenedUrl": "https://developer-lostark.game.onstove.com/getting-started",
+    "sourceClickError": "",
+    "trackedEnvFiles": [
+      ".env.example"
+    ],
+    "secretFileHits": [],
+    "dashboardExternalOrigins": [],
+    "dashboardSecretUrlHits": [],
+    "mainConsoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 ()"
+    ]
+  },
+  "card3": [
+    {
+      "key": "timeout",
+      "beforeText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n4분 56초 후\n↻",
+      "afterText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n수동 갱신 5초 후\n↻",
+      "hasOldDataBadge": false,
+      "hasNoDataText": false,
+      "hasRetryText": false,
+      "clickError": "",
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_TIMED_OUT"
+      ]
+    },
+    {
+      "key": "auth-401",
+      "beforeText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n4분 55초 후\n↻",
+      "afterText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n수동 갱신 5초 후\n↻",
+      "hasOldDataBadge": false,
+      "hasNoDataText": false,
+      "hasRetryText": false,
+      "clickError": "",
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ]
+    },
+    {
+      "key": "rate-429",
+      "beforeText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n4분 28초 후\n↻",
+      "afterText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n수동 갱신 5초 후\n↻",
+      "hasOldDataBadge": false,
+      "hasNoDataText": false,
+      "hasRetryText": false,
+      "clickError": "",
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+      ]
+    },
+    {
+      "key": "offline",
+      "beforeText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n4분 34초 후\n↻",
+      "afterText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n수동 갱신 5초 후\n↻",
+      "hasOldDataBadge": false,
+      "hasNoDataText": false,
+      "hasRetryText": false,
+      "clickError": "",
+      "pageErrors": [],
+      "consoleErrors": [
+        "Failed to load resource: net::ERR_INTERNET_DISCONNECTED"
+      ]
+    },
+    {
+      "key": "schema-change",
+      "beforeText": "◉\n\nLIVE WIDGET\n\nGitHub 서비스 상태\n●\n정상\n모든 시스템 정상\nGitHub 공개 상태 페이지\n영향받는 구성요소\n0개\n원천 시각\n26분 전\n조회 시각\n몇 초 전\n출처\nGitHub Status ↗\nGET /api/v2/summary.json\n4분 23초 후\n↻",
+      "afterText": "",
+      "hasOldDataBadge": false,
+      "hasNoDataText": false,
+      "hasRetryText": false,
+      "clickError": "",
+      "pageErrors": [
+        "Cannot read properties of undefined (reading 'docsUrl')"
+      ],
+      "consoleErrors": []
+    }
+  ],
+  "card4": {
+    "storageKeys": [],
+    "historyTerms": [
+      "전일"
+    ],
+    "hasExplicitDailyHistory": false
+  },
+  "card5": {
+    "changeTerms": [
+      "%"
+    ],
+    "hasPreviousValueLanguage": true
+  },
+  "requestPaths": [
+    "https://realtime-info-board.vercel.app/",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/0mnzxqz7zgz81.css",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/25kvgcvbp6c14.js",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/28fkf9f9btak4.js",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/31vkzv30zcm_n.js",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/3vkipwfh56ofy.js",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/turbopack-3z7av2ksglu0y.js",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/1x4k_1u8h9p4p.js",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/0-a8i9rijwz8h.js",
+    "https://realtime-info-board.vercel.app/api/widgets/lostark-notices",
+    "https://realtime-info-board.vercel.app/api/widgets/lostark-market",
+    "https://realtime-info-board.vercel.app/api/widgets/upbit-ticker",
+    "https://realtime-info-board.vercel.app/api/widgets/exchange-rate",
+    "https://realtime-info-board.vercel.app/api/widgets/status",
+    "https://realtime-info-board.vercel.app/verification",
+    "https://realtime-info-board.vercel.app/_next/static/immutable/chunks/1gzz7-a6gnq_n.js"
+  ]
+}

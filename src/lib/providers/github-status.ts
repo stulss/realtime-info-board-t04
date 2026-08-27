@@ -1,5 +1,5 @@
 import type { WidgetPayload } from "@/types/widget";
-import { fetchJson } from "@/lib/server/http";
+import { fetchJson, ProviderHttpError } from "@/lib/server/http";
 
 type StatusSummary = {
   page: { updated_at: string };
@@ -23,6 +23,9 @@ export const githubStatusSource: WidgetPayload["source"] = {
 
 export async function fetchGithubStatus(): Promise<WidgetPayload> {
   const summary = await fetchJson<StatusSummary>("https://www.githubstatus.com/api/v2/summary.json");
+  if (!summary?.page?.updated_at || !summary.status?.indicator || !Array.isArray(summary.components)) {
+    throw new ProviderHttpError("GitHub Status 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
+  }
   const affected = summary.components.filter((component) => component.status !== "operational").length;
   const fetchedAt = new Date().toISOString();
   return {

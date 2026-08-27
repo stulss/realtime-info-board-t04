@@ -1,0 +1,3 @@
+authkey= 평문 노출: 0건
+bearer 토큰 노출: 0건
+{REDACTED} 마스킹 사용: 아니오

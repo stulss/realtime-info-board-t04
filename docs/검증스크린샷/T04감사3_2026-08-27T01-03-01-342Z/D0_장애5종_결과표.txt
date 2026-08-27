@@ -1,0 +1,29 @@
+### D1_인증실패_401
+화면 배지: 조회 실패, 표시할 데이터 없음
+화면 문구: 조회 실패 | 위젯 응답 형식이 올바르지 않습니다.
+오류: console.error: Failed to load resource: the server responded with a status of 401 (Unauthorized) ;; console.error: Failed to load resource: the server responded with a status of 401 (Unauthorized) ;; console.error: Failed to load resource: the server responded with a status of 401 (Unauthorized) ;; console.error: Failed to load resource: the server responded with a status of 401 (Unauthorized) ;; console.error: Failed to load resource: the server responded with a status of 401 (Unauthorized)
+
+### D2_호출제한_429
+화면 배지: 조회 실패, 표시할 데이터 없음
+화면 문구: 조회 실패 | 위젯 응답 형식이 올바르지 않습니다.
+오류: console.error: Failed to load resource: the server responded with a status of 429 (Too Many Requests) ;; console.error: Failed to load resource: the server responded with a status of 429 (Too Many Requests) ;; console.error: Failed to load resource: the server responded with a status of 429 (Too Many Requests) ;; console.error: Failed to load resource: the server responded with a status of 429 (Too Many Requests) ;; console.error: Failed to load resource: the server responded with a status of 429 (Too Many Requests)
+
+### D3_응답형식변경_200
+화면 배지: (없음)
+화면 문구: (없음)
+오류: pageerror: Cannot read properties of undefined (reading 'docsUrl')
+
+### D4_오프라인_연결끊김
+화면 배지: 조회 실패, 표시할 데이터 없음
+화면 문구: 조회 실패
+오류: console.error: Failed to load resource: net::ERR_CONNECTION_FAILED ;; console.error: Failed to load resource: net::ERR_CONNECTION_FAILED ;; console.error: Failed to load resource: net::ERR_CONNECTION_FAILED ;; console.error: Failed to load resource: net::ERR_CONNECTION_FAILED ;; console.error: Failed to load resource: net::ERR_CONNECTION_FAILED
+
+### D5_timeout_지연후중단
+화면 배지: 조회 실패, 표시할 데이터 없음
+화면 문구: 조회 실패
+오류: console.error: Failed to load resource: net::ERR_TIMED_OUT ;; console.error: Failed to load resource: net::ERR_TIMED_OUT ;; console.error: Failed to load resource: net::ERR_TIMED_OUT ;; console.error: Failed to load resource: net::ERR_TIMED_OUT ;; console.error: Failed to load resource: net::ERR_TIMED_OUT
+
+### D6_서버503_공급자오류
+화면 배지: 조회 실패, 표시할 데이터 없음
+화면 문구: 조회 실패 | 공급자 접근 불가
+오류: console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable) ;; console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable) ;; console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable) ;; console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable) ;; console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)

@@ -6,6 +6,14 @@ export type WidgetStatus =
   | "rate_limited"
   | "error";
 
+export type WidgetFailureKind =
+  | "timeout"
+  | "unauthorized"
+  | "rate_limited"
+  | "offline"
+  | "schema_changed"
+  | "provider_error";
+
 export type WidgetData<T> = {
   value: T;
   status: WidgetStatus;
@@ -20,7 +28,12 @@ export type WidgetData<T> = {
   nextRefreshAt?: string;
   cacheAgeMs: number;
   warning?: string;
-  lastError?: { code?: number; message: string; occurredAt: string };
+  lastError?: {
+    kind?: WidgetFailureKind;
+    code?: number;
+    message: string;
+    occurredAt: string;
+  };
 };
 
 export type WidgetValue = {

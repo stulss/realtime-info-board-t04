@@ -1,0 +1,19 @@
+### /api/widgets/lostark-notices
+HTTP 200
+{"value":{"headline":"8월 27일(목) 로스트아크 임시 점검 완료 안내","subline":"점검 공지 확인","details":[{"label":"최근 공지","value":"72건"},{"label":"점검 공지","value":"27건"}]},"status":"ok","source":{"provider":"Lost Ark OpenAPI","docsUrl":"https://developer-lostark.game.onstove.com/getting-started","endpointTemplate":"GET /news/notices"},"fetchedAt":"2026-08-27T00:53:03.934Z","nextRefreshAt":"2026-08-27T01:08:03.934Z","cacheAgeMs":490815,"warning":"점검 공지가 있습니다. OpenAPI 접근 불가 상태와는 별도입니다."}
+
+### /api/widgets/lostark-market?itemName=%ED%8C%8C%EA%B4%B4%EA%B0%95%EC%84%9D
+HTTP 200
+{"value":{"headline":"6 골드","subline":"파괴강석","trend":"down","details":[{"label":"최근 거래가","value":"6 골드"},{"label":"전일 평균 대비","value":"-11.8%"}]},"status":"ok","source":{"provider":"Lost Ark OpenAPI","docsUrl":"https://developer-lostark.game.onstove.com/getting-started","endpointTemplate":"GET /markets/options → POST /markets/items"},"fetchedAt":"2026-08-27T01:01:16.415Z","nextRefreshAt":"2026-08-27T01:06:16.415Z","cacheAgeMs":0}
+
+### /api/widgets/upbit-ticker
+HTTP 200
+{"value":{"headline":"₩108,975,000","subline":"BTC / KRW","trend":"down","details":[{"label":"24시간","value":"-0.78%"}]},"status":"ok","source":{"provider":"Upbit","docsUrl":"https://docs.upbit.com/kr/reference/ticker-current","endpointTemplate":"GET /v1/ticker?markets=KRW-BTC","attribution":"Upbit Open API"},"sourceTimestamp":"2026-08-27T01:01:15.858Z","fetchedAt":"2026-08-27T01:01:17.181Z","nextRefreshAt":"2026-08-27T01:01:37.181Z","cacheAgeMs":0}
+
+### /api/widgets/exchange-rate?currency=USD
+HTTP 200
+{"value":{"headline":"1,383.1원","subline":"USD 매매기준율","details":[{"label":"고시일","value":"20260826"}]},"status":"ok","source":{"provider":"한국수출입은행","docsUrl":"https://www.data.go.kr/data/3068846/openapi.do","endpointTemplate":"GET https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={REDACTED}&searchdate={YYYYMMDD}&data=AP01","attribution":"한국수출입은행 환율정보"},"fetchedAt":"2026-08-27T00:52:53.145Z","nextRefreshAt":"2026-08-27T01:52:53.145Z","cacheAgeMs":504283}
+
+### /api/widgets/status
+HTTP 200
+{"value":{"headline":"모든 시스템 정상","subline":"GitHub 공개 상태 페이지","details":[{"label":"영향받는 구성요소","value":"0개"}]},"status":"ok","source":{"provider":"GitHub Status","docsUrl":"https://www.githubstatus.com/api","endpointTemplate":"GET /api/v2/summary.json"},"sourceTimestamp":"2026-08-27T00:31:22.347Z","fetchedAt":"2026-08-27T01:01:17.690Z","nextRefreshAt":"2026-08-27T01:06:17.690Z","cacheAgeMs":0}

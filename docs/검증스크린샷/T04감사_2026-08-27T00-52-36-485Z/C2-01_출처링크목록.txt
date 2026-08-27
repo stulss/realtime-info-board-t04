@@ -1,0 +1,5 @@
+Lost Ark OpenAPI ↗ -> https://developer-lostark.game.onstove.com/getting-started
+Lost Ark OpenAPI ↗ -> https://developer-lostark.game.onstove.com/getting-started
+Upbit ↗ -> https://docs.upbit.com/kr/reference/ticker-current
+한국수출입은행 ↗ -> https://www.data.go.kr/data/3068846/openapi.do
+GitHub Status ↗ -> https://www.githubstatus.com/api

@@ -39,6 +39,9 @@ export async function fetchExchangeRate(currency: ExchangeCurrency = DEFAULT_EXC
     url.searchParams.set("searchdate", publishedDate);
     url.searchParams.set("data", "AP01");
     const rates = await fetchJson<EximRate[] | null>(url.toString(), { retries: 1 });
+    if (rates !== null && !Array.isArray(rates)) {
+      throw new ProviderHttpError("한국수출입은행 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
+    }
     const resultCode = rates?.[0]?.result;
 
     if (resultCode === 2) {

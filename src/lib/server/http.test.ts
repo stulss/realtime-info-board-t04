@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchJson } from "./http";
+import { ProviderHttpError, fetchJson } from "./http";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -32,5 +32,29 @@ describe("fetchJson", () => {
     vi.stubGlobal("fetch", fetchMock);
     await expect(fetchJson("https://provider.test", { retries: 2 })).rejects.toMatchObject({ status: 503 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [401, "unauthorized"],
+    [429, "rate_limited"],
+  ] as const)("HTTP %s를 고유 장애 종류 %s로 분류한다", async (status, kind) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}", { status })));
+    await expect(fetchJson("https://provider.test")).rejects.toMatchObject({ status, kind });
+  });
+
+  it("JSON 형식 변경을 별도 장애로 분류한다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("not-json", { status: 200 })));
+    await expect(fetchJson("https://provider.test")).rejects.toMatchObject({ kind: "schema_changed" });
+  });
+
+  it("공급자 오류 객체가 명시적인 장애 종류를 보존한다", () => {
+    expect(new ProviderHttpError("offline", undefined, undefined, "offline").kind).toBe("offline");
+  });
+
+  it.each([
+    [401, "unauthorized"],
+    [429, "rate_limited"],
+  ] as const)("직접 생성한 HTTP %s 오류도 %s로 분류한다", (status, kind) => {
+    expect(new ProviderHttpError("manual", status).kind).toBe(kind);
   });
 });

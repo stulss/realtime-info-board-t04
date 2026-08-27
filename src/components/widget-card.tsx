@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { formatAbsoluteTime, formatCountdown, formatRelativeTime } from "@/lib/time";
+import { FAILURE_LABELS } from "@/lib/client/widget-state";
 import type { WidgetPayload } from "@/types/widget";
 import { StatusBadge } from "./status-badge";
 
@@ -42,6 +43,8 @@ export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh, 
 
   const status = isRefreshing && data.status === "ok" ? "refreshing" : data.status;
   const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1_000));
+  const failureLabel = data.lastError?.kind ? FAILURE_LABELS[data.lastError.kind] : undefined;
+  const isRetryState = status === "stale" || status === "rate_limited" || status === "error";
 
   function refresh() {
     if (!onRefresh || isRefreshing || cooldownSeconds > 0) return;
@@ -83,7 +86,8 @@ export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh, 
 
       {(data.warning || data.lastError) && (
         <p className="widget-card__warning" role="status">
-          {data.warning ?? data.lastError?.message}
+          {failureLabel && <strong>장애 유형: {failureLabel}</strong>}
+          <span>{data.warning ?? data.lastError?.message}</span>
         </p>
       )}
 
@@ -105,6 +109,7 @@ export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh, 
           {onRefresh && (
             <button type="button" onClick={refresh} disabled={isRefreshing || cooldownSeconds > 0} aria-label={`${name} 새로고침`}>
               <span aria-hidden="true">↻</span>
+              {isRetryState && <b>다시 시도</b>}
             </button>
           )}
         </div>

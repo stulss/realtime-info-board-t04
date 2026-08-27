@@ -1,0 +1,7 @@
+### /api/widgets/lostark-market?itemName=zzz존재하지않는아이템zzz
+HTTP 503
+{"value":null,"status":"error","source":{"provider":"Lost Ark OpenAPI","docsUrl":"https://developer-lostark.game.onstove.com/getting-started","endpointTemplate":"GET /markets/options → POST /markets/items"},"fetchedAt":"2026-08-27T01:01:21.024Z","nextRefreshAt":"2026-08-27T01:06:21.024Z","cacheAgeMs":0,"lastError":{"code":404,"message":"거래장에서 'zzz존재하지않는아이템zzz' 항목을 찾지 못했습니다.","occurredAt":"2026-08-27T01:01:21.024Z"}}
+
+### /api/widgets/exchange-rate?currency=XXX
+HTTP 503
+{"value":null,"status":"error","source":{"provider":"한국수출입은행","docsUrl":"https://www.data.go.kr/data/3068846/openapi.do","endpointTemplate":"GET https://oapi.koreaexim.go.kr/site/program/financial/exchangeJSON?authkey={REDACTED}&searchdate={YYYYMMDD}&data=AP01","attribution":"한국수출입은행 환율정보"},"fetchedAt":"2026-08-27T01:01:21.251Z","nextRefreshAt":"2026-08-27T02:01:21.251Z","cacheAgeMs":0,"lastError":{"code":400,"message":"지원하지 않는 통화 코드입니다.","occurredAt":"2026-08-27T01:01:21.251Z"}}

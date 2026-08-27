@@ -12,6 +12,11 @@ import {
   type ExchangeCurrency,
 } from "@/lib/widget-options";
 import { WidgetCard } from "./widget-card";
+import { DailyHistoryPanel } from "./daily-history-panel";
+import {
+  displayPayloadAfterFailure,
+  fetchWidgetPayload,
+} from "@/lib/client/widget-state";
 
 const WIDGETS = [
   { id: "lostark-notices", name: "로스트아크 공지", icon: "⚔", interval: 15 * 60_000 },
@@ -20,13 +25,6 @@ const WIDGETS = [
   { id: "exchange-rate", name: "원·달러 고시환율", icon: "₩", interval: 60 * 60_000 },
   { id: "status", name: "GitHub 서비스 상태", icon: "◉", interval: 5 * 60_000 },
 ] as const;
-
-async function fetchWidget(requestPath: string): Promise<WidgetPayload> {
-  const response = await fetch(requestPath);
-  const data = (await response.json()) as WidgetPayload;
-  if (!response.ok && !data.lastError) throw new Error("위젯 응답 형식이 올바르지 않습니다.");
-  return data;
-}
 
 function DashboardWidget({
   widget,
@@ -39,27 +37,36 @@ function DashboardWidget({
 }) {
   const query = useQuery({
     queryKey: ["widget", widget.id, requestPath],
-    queryFn: () => fetchWidget(requestPath),
+    queryFn: () => fetchWidgetPayload(requestPath),
+    retry: false,
     refetchInterval: () =>
       typeof document !== "undefined" && document.visibilityState === "hidden"
         ? widget.interval * 4
         : widget.interval,
   });
 
+  const sourceFallback: WidgetPayload["source"] = {
+    provider: widget.name,
+    docsUrl: "#",
+    endpointTemplate: `/api/widgets/${widget.id}`,
+  };
   const fallback: WidgetPayload = {
     value: null,
-    status: "error",
-    source: { provider: widget.name, docsUrl: "#", endpointTemplate: `/api/widgets/${widget.id}` },
+    status: "refreshing",
+    source: sourceFallback,
     fetchedAt: "",
     cacheAgeMs: 0,
-    warning: query.error instanceof Error ? query.error.message : "데이터를 불러오는 중입니다.",
+    warning: "데이터를 불러오는 중입니다.",
   };
+  const displayData = query.error
+    ? displayPayloadAfterFailure(query.data, query.error, sourceFallback)
+    : query.data ?? fallback;
 
   return (
     <WidgetCard
       icon={widget.icon}
       name={widget.name}
-      data={query.data ?? fallback}
+      data={displayData}
       isRefreshing={query.isFetching}
       onRefresh={() => void query.refetch()}
       controls={controls}
@@ -191,6 +198,8 @@ export function Dashboard() {
           return <DashboardWidget key={widget.id} widget={widget} />;
         })}
       </section>
+
+      <DailyHistoryPanel />
 
       <footer className="page-footer">
         <span>Pulseboard</span>

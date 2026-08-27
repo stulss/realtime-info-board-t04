@@ -26,16 +26,17 @@ describe("한국수출입은행 환율 adapter", () => {
   });
 
   it.each([
-    [2, 400, "요청 유형"],
-    [3, 401, "인증키"],
-    [4, 429, "일일 호출 한도"],
-  ])("RESULT %i 오류를 즉시 분류한다", async (resultCode, status, message) => {
+    [2, 400, "provider_error", "요청 유형"],
+    [3, 401, "unauthorized", "인증키"],
+    [4, 429, "rate_limited", "일일 호출 한도"],
+  ])("RESULT %i 오류를 즉시 분류한다", async (resultCode, status, kind, message) => {
     vi.stubEnv("EXIM_SERVICE_KEY", "test-service-key");
     const fetchMock = vi.fn().mockResolvedValue(Response.json([{ result: resultCode }]));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(fetchExchangeRate()).rejects.toMatchObject({
       status,
+      kind,
       message: expect.stringContaining(message),
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);

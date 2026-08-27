@@ -31,6 +31,7 @@ export async function widgetResponse(
       cacheAgeMs: 0,
       warning: providerError?.status === 503 ? "공급자 API 접근 불가 상태입니다. 실제 서비스 장애를 의미하지는 않습니다." : undefined,
       lastError: {
+        kind: providerError?.kind,
         code: providerError?.status,
         message: error instanceof Error ? error.message : "알 수 없는 조회 오류",
         occurredAt,

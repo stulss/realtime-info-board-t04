@@ -53,6 +53,7 @@ async function getMarketOptions(): Promise<MarketOptions> {
 
 export async function fetchLostArkNotices(): Promise<WidgetPayload> {
   const notices = await fetchJson<LostArkNotice[]>(`${LOSTARK_BASE_URL}/news/notices`, { headers: lostArkHeaders(), retries: 1 });
+  if (!Array.isArray(notices)) throw new ProviderHttpError("공지 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
   const latest = notices[0];
   if (!latest) throw new ProviderHttpError("최근 로스트아크 공지가 없습니다.", 404);
   const maintenanceCount = notices.filter((notice) => /점검|maintenance/i.test(`${notice.Title} ${notice.Type}`)).length;
@@ -83,7 +84,7 @@ function marketCategoryCodes(options: MarketOptions): number[] {
 }
 
 async function searchMarketCategory(categoryCode: number, itemName: string): Promise<MarketResponse> {
-  return fetchJson<MarketResponse>(`${LOSTARK_BASE_URL}/markets/items`, {
+  const response = await fetchJson<MarketResponse>(`${LOSTARK_BASE_URL}/markets/items`, {
     method: "POST",
     headers: lostArkHeaders(),
     body: JSON.stringify({
@@ -98,6 +99,10 @@ async function searchMarketCategory(categoryCode: number, itemName: string): Pro
     }),
     retries: 1,
   });
+  if (!response || !Array.isArray(response.Items)) {
+    throw new ProviderHttpError("거래장 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
+  }
+  return response;
 }
 
 export async function fetchLostArkMarket(itemName = DEFAULT_MARKET_ITEM_NAME): Promise<WidgetPayload> {
