@@ -106,7 +106,7 @@ test("장애 5종을 서로 다른 문구로 표시하고 오래된 값·빈 상
   }
 });
 
-test("실시간 대시보드가 자체 API만 호출하고 12개 위젯을 표시한다", async ({ page }) => {
+test("실시간 대시보드가 자체 API만 호출하고 15개 위젯을 표시한다", async ({ page }) => {
   const externalBrowserRequests: string[] = [];
   const consoleErrors: string[] = [];
   page.on("request", (request) => {
@@ -122,7 +122,7 @@ test("실시간 대시보드가 자체 API만 호출하고 12개 위젯을 표�
   await mockDailyHistory(page);
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/");
-  await expect(page.locator(".widget-card")).toHaveCount(12);
+  await expect(page.locator(".widget-card")).toHaveCount(15);
   await expect(page.getByRole("button", { name: "전체 새로고침" })).toBeVisible();
   await expect(page.getByLabel("통화 선택")).toBeVisible();
   await expect(page.getByRole("textbox", { name: "아이템 검색" })).toHaveCount(0);
@@ -264,7 +264,8 @@ test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후�
   await page.goto("/");
   const log = page.locator(".daily-log");
   await expect(log.getByRole("heading", { name: /2026-11-03/ })).toBeVisible();
-  await expect(log.getByRole("cell", { name: "서울 기온" })).toBeVisible();
+  await expect(log.getByRole("rowheader", { name: "서울 기온" })).toBeVisible();
+  await expect(log.getByRole("tab", { name: /11-03/ })).toHaveAttribute("aria-selected", "true");
 
   const refreshWeather = page.locator(".widget-card", { hasText: "서울 날씨 (Open-Meteo)" }).locator(".refresh-block button").first();
   await refreshWeather.click(); // 같은 fetchedAt → 표본 1 유지
@@ -282,6 +283,58 @@ test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후�
   expect(stored.filter((entry: { metricKey: string }) => entry.metricKey === "weather-seoul-temp")).toHaveLength(1);
 
   await page.reload();
-  await expect(page.locator(".daily-log").getByRole("cell", { name: "서울 기온" })).toBeVisible();
+  await expect(page.locator(".daily-log").getByRole("rowheader", { name: "서울 기온" })).toBeVisible();
+  // 카드 스트립: 스파크라인 + 오늘 범위(10~14°C, 2회)
+  const card = page.locator(".widget-card", { hasText: "서울 날씨 (Open-Meteo)" });
+  await expect(card.getByLabel("서울 날씨 (Open-Meteo) 날짜별 기록")).toContainText("10~14 °C · 2회 기록");
+  await expect(card.locator(".sparkline")).toBeVisible();
+  // 추세 차트: 지표 선택 후 날짜 점 1개
+  const log2 = page.locator(".daily-log");
+  await log2.getByLabel("추세 지표").selectOption({ label: "서울 기온" });
+  await expect(log2.getByRole("img", { name: /서울 기온 날짜별 추세 차트, 1일/ })).toBeVisible();
+  await expect(log2.locator(".range-list")).toContainText("최소 10 °C");
+  await expect(page.locator(".briefing__tile")).toHaveCount(5);
   await page.locator(".daily-log").screenshot({ path: `${SCREENSHOT_DIR}/08_날짜별_자동기록.png` });
+});
+
+test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세 차트로 날짜별 기록을 보여준다", async ({ page }) => {
+  const days = ["2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03"];
+  const series = [
+    { key: "weather-seoul-temp", label: "서울 기온", unit: "°C", base: [12, 14, 11, 9, 13, 16, 15] },
+    { key: "airquality-seoul-pm25", label: "서울 PM2.5(모델)", unit: "μg/m³", base: [22, 41, 58, 33, 18, 27, 44] },
+    { key: "upbit-btc-krw", label: "Upbit BTC/KRW", unit: "KRW", base: [101e6, 102.5e6, 100.1e6, 103e6, 104.2e6, 103.4e6, 103.0e6] },
+  ];
+  const entries = series.flatMap((item) => days.map((date, index) => {
+    const latest = item.base[index];
+    return {
+      id: `${item.key}:${date}`, metricKey: item.key, label: item.label, unit: item.unit, date,
+      first: latest * 0.97, latest, min: latest * 0.93, max: latest * 1.06, samples: 6 + index,
+      firstAt: `${date}T01:00:00.000Z`, updatedAt: `${date}T09:00:00.000Z`, lastFetchedAt: `${date}T09:00:00.000Z`,
+    };
+  }));
+  await page.addInitScript((value) => {
+    localStorage.setItem("pulseboard-daily-log-v1", JSON.stringify(value));
+  }, entries);
+  await mockDailyHistory(page);
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto("/");
+
+  const log = page.locator(".daily-log");
+  await expect(log.getByRole("tab")).toHaveCount(7);
+  await expect(log.getByRole("tab", { name: /11-03/ })).toHaveAttribute("aria-selected", "true");
+  await log.getByRole("tab", { name: /10-30/ }).click();
+  await expect(log.getByRole("heading", { name: /2026-10-30/ })).toBeVisible();
+  await expect(log.locator(".range-list li")).toHaveCount(3);
+  // 실제 위젯이 오늘 날짜로 지표를 추가 기록할 수 있으므로 행은 최소 3개, 셀은 행 × 7일
+  const rowCount = await log.locator(".log-matrix tbody tr").count();
+  expect(rowCount).toBeGreaterThanOrEqual(3);
+  await expect(log.locator(".log-matrix td.heat")).toHaveCount(rowCount * 7);
+  await log.getByLabel("추세 지표").selectOption({ label: "서울 PM2.5(모델)" });
+  await expect(log.getByRole("img", { name: /서울 PM2\.5\(모델\) 날짜별 추세 차트, 7일/ })).toBeVisible();
+  await expect(log.locator(".trend-chart__point")).toHaveCount(7);
+
+  await log.scrollIntoViewIfNeeded();
+  await log.screenshot({ path: `${SCREENSHOT_DIR}/09_날짜별기록_시각화_7일.png` });
+  await page.waitForTimeout(1_500); // 등장·그리기 모션이 끝난 뒤 촬영
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/10_대시보드_전체_고도화.png`, fullPage: true });
 });

@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   dailyLogToCsv,
   groupByDate,
+  listMetrics,
   parseDailyLog,
+  ratio,
   recordMetric,
+  seriesFor,
   toKstDate,
   type DailyLogEntry,
 } from "./daily-log";
@@ -48,6 +51,24 @@ describe("날짜별 기록", () => {
   it("보관 기간(90일)이 지난 기록은 정리한다", () => {
     const old = recordMetric([], metric, "2026-07-01T01:00:00.000Z", new Date("2026-07-01T02:00:00.000Z"));
     expect(recordMetric(old, { ...metric, key: "other" }, "2026-11-03T01:00:00.000Z", NOW)).toHaveLength(1);
+  });
+
+  it("seriesFor는 한 지표의 최근 N일을 오래된 날짜부터 돌려준다", () => {
+    let entries: DailyLogEntry[] = [];
+    for (const day of ["01", "02", "03"]) {
+      entries = recordMetric(entries, metric, `2026-11-${day}T01:00:00.000Z`, NOW);
+    }
+    entries = recordMetric(entries, { ...metric, key: "other" }, "2026-11-03T01:00:00.000Z", NOW);
+    expect(seriesFor(entries, "weather-seoul-temp", 2).map((e) => e.date)).toEqual(["2026-11-02", "2026-11-03"]);
+    expect(seriesFor(entries, "none")).toEqual([]);
+    expect(listMetrics(entries).map((m) => m.key).sort()).toEqual(["other", "weather-seoul-temp"]);
+  });
+
+  it("ratio는 0~1로 제한하고 범위가 0이면 0.5", () => {
+    expect(ratio(5, 0, 10)).toBe(0.5);
+    expect(ratio(-3, 0, 10)).toBe(0);
+    expect(ratio(99, 0, 10)).toBe(1);
+    expect(ratio(4, 4, 4)).toBe(0.5);
   });
 
   it("손상된 저장 문자열은 빈 배열로 복구한다", () => {

@@ -4,6 +4,8 @@ import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { formatAbsoluteTime, formatCountdown, formatRelativeTime } from "@/lib/time";
 import { FAILURE_LABELS } from "@/lib/client/widget-state";
 import type { WidgetPayload } from "@/types/widget";
+import { ratio, type DailyLogEntry } from "@/lib/history/daily-log";
+import { Sparkline } from "./sparkline";
 import { StatusBadge } from "./status-badge";
 
 type WidgetCardProps = {
@@ -13,7 +15,35 @@ type WidgetCardProps = {
   isRefreshing?: boolean;
   onRefresh?: () => void;
   controls?: ReactNode;
+  /** 이 위젯 지표의 날짜별 기록(오래된 날짜 → 최신). 지표가 있는 위젯만 전달한다. */
+  history?: DailyLogEntry[];
 };
+
+function HistoryStrip({ name, history }: { name: string; history: DailyLogEntry[] }) {
+  const today = history[history.length - 1];
+  return (
+    <div className="widget-card__history" aria-label={`${name} 날짜별 기록`}>
+      <div className="widget-card__history-head">
+        <span>날짜별 기록</span>
+        <small>{history.length > 0 ? `최근 ${history.length}일` : "기록 대기 중"}</small>
+      </div>
+      {today ? (
+        <>
+          <Sparkline values={history.map((entry) => entry.latest)} label={`${name} 최근 ${history.length}일 추세`} />
+          <div className="range-bar" title={`${today.date} 최소 ${today.min} ~ 최대 ${today.max} ${today.unit}`}>
+            <i className="range-bar__span" style={{ left: "0%", width: "100%" }} />
+            <i className="range-bar__marker" style={{ left: `${ratio(today.latest, today.min, today.max) * 100}%` }} />
+          </div>
+          <small className="widget-card__history-note">
+            {today.date.slice(5)} · {today.min}~{today.max} {today.unit} · {today.samples}회 기록
+          </small>
+        </>
+      ) : (
+        <small className="widget-card__history-note">첫 정상 조회가 되면 오늘 날짜로 기록됩니다.</small>
+      )}
+    </div>
+  );
+}
 
 function subscribeClock(onStoreChange: () => void): () => void {
   const timer = window.setInterval(onStoreChange, 1_000);
@@ -37,7 +67,7 @@ function TimeValue({ label, value, fallback, now }: { label: string; value?: str
   );
 }
 
-export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh, controls }: WidgetCardProps) {
+export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh, controls, history }: WidgetCardProps) {
   const now = useSyncExternalStore(subscribeClock, getCurrentTime, getServerTime);
   const [cooldownUntil, setCooldownUntil] = useState(0);
 
@@ -83,6 +113,8 @@ export function WidgetCard({ icon, name, data, isRefreshing = false, onRefresh, 
           ))}
         </dl>
       )}
+
+      {history && <HistoryStrip name={name} history={history} />}
 
       {(data.warning || data.lastError) && (
         <p className="widget-card__warning" role="status">

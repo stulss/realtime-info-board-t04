@@ -12,7 +12,9 @@ import {
 import { WidgetCard } from "./widget-card";
 import { DailyHistoryPanel } from "./daily-history-panel";
 import { DailyLogPanel } from "./daily-log-panel";
-import { recordWidgetMetric } from "@/lib/history/daily-log";
+import { recordWidgetMetric, seriesFor } from "@/lib/history/daily-log";
+import { useDailyLog } from "@/lib/history/use-daily-log";
+import { Briefing } from "./briefing";
 import {
   displayPayloadAfterFailure,
   fetchWidgetPayload,
@@ -25,18 +27,21 @@ const WIDGETS = [
   { id: "frankfurter-rate", group: "market", name: "USD/KRW 국제 참조환율", icon: "$", interval: 60 * 60_000 },
   { id: "kma-weather", group: "env", name: "기상청 서울 날씨", icon: "☀", interval: 10 * 60_000 },
   { id: "weather", group: "env", name: "서울 날씨 (Open-Meteo)", icon: "☁", interval: 10 * 60_000 },
+  { id: "weather-forecast", group: "env", name: "서울 오늘 예보", icon: "◐", interval: 60 * 60_000 },
   { id: "airkorea", group: "env", name: "에어코리아 미세먼지", icon: "≋", interval: 30 * 60_000 },
   { id: "air-quality", group: "env", name: "서울 대기질 (Open-Meteo)", icon: "◌", interval: 30 * 60_000 },
   { id: "sensor-community", group: "env", name: "시민 센서 PM2.5", icon: "⌁", interval: 5 * 60_000 },
   { id: "usgs-earthquake", group: "world", name: "전 세계 지진 (USGS)", icon: "〰", interval: 5 * 60_000 },
   { id: "iss", group: "world", name: "국제우주정거장 위치", icon: "✦", interval: 15_000 },
+  { id: "kp-index", group: "world", name: "우주날씨 (지자기 Kp)", icon: "☄", interval: 15 * 60_000 },
+  { id: "holiday", group: "world", name: "다음 공휴일", icon: "★", interval: 60 * 60_000 },
   { id: "status", group: "world", name: "GitHub 서비스 상태", icon: "◉", interval: 5 * 60_000 },
 ] as const;
 
 const GROUPS = [
   { id: "market", title: "시세 · 환율" },
   { id: "env", title: "날씨 · 대기" },
-  { id: "world", title: "세계 · 서비스" },
+  { id: "world", title: "세계 · 생활" },
 ] as const;
 
 function DashboardWidget({
@@ -58,6 +63,9 @@ function DashboardWidget({
         : widget.interval,
   });
 
+  const logEntries = useDailyLog();
+  const metricKey = query.data?.value?.metric?.key;
+  const history = metricKey ? seriesFor(logEntries, metricKey, 7) : undefined;
   const metric = query.data?.status === "ok" ? query.data.value?.metric : undefined;
   const metricFetchedAt = query.data?.fetchedAt;
   useEffect(() => {
@@ -89,6 +97,7 @@ function DashboardWidget({
       isRefreshing={query.isFetching}
       onRefresh={() => void query.refetch()}
       controls={controls}
+      history={history}
     />
   );
 }
@@ -151,6 +160,8 @@ export function Dashboard() {
           </button>
         </div>
       </section>
+
+      <Briefing />
 
       <section className="section-heading">
         <div><span>01</span><h2>내 정보판</h2></div>

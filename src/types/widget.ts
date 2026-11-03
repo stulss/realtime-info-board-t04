@@ -47,6 +47,8 @@ export type WidgetValue = {
   headline: string;
   /** 날짜별 기록에 저장할 대표 수치(선택). 없으면 기록하지 않는다. */
   metric?: WidgetMetric;
+  /** 브리핑 등 화면 조합용 기계 판독 값(선택). 표시 문구 파싱을 피하려고 둔다. */
+  facts?: Record<string, number>;
   subline?: string;
   trend?: "up" | "down" | "flat";
   details?: Array<{ label: string; value: string }>;

@@ -105,6 +105,26 @@ export function groupByDate(entries: DailyLogEntry[]): Array<[string, DailyLogEn
   return [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 }
 
+/** 한 지표의 최근 N일 기록을 오래된 날짜부터 반환한다(차트·스파크라인용). */
+export function seriesFor(entries: DailyLogEntry[], metricKey: string, days = 7): DailyLogEntry[] {
+  return entries
+    .filter((entry) => entry.metricKey === metricKey)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-days);
+}
+
+/** 기록에 있는 지표 목록(이름순, 중복 없음). */
+export function listMetrics(entries: DailyLogEntry[]): Array<{ key: string; label: string; unit: string }> {
+  const map = new Map<string, { key: string; label: string; unit: string }>();
+  for (const entry of entries) map.set(entry.metricKey, { key: entry.metricKey, label: entry.label, unit: entry.unit });
+  return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "ko"));
+}
+
+/** 값의 위치를 0~1로 환산한다. 범위가 0이면 0.5. */
+export function ratio(value: number, min: number, max: number): number {
+  return max === min ? 0.5 : Math.min(1, Math.max(0, (value - min) / (max - min)));
+}
+
 function csvCell(value: string | number): string {
   const text = String(value);
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;

@@ -1,5 +1,8 @@
 import type { WidgetPayload } from "@/types/widget";
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
+import { pm25Grade } from "@/lib/air-grade";
+
+export { pm25Grade };
 
 /** 서울 시청 좌표 */
 const LAT = 37.5665;
@@ -53,6 +56,7 @@ export async function fetchSeoulWeather(): Promise<WidgetPayload> {
       headline: `${c.temperature_2m.toFixed(1)}°C`,
       subline: `서울 · ${WMO[c.weather_code] ?? `날씨 코드 ${c.weather_code}`}`,
       metric: { key: "weather-seoul-temp", label: "서울 기온", value: c.temperature_2m, unit: "°C" },
+      facts: { temperature: c.temperature_2m },
       details: [
         { label: "체감", value: `${c.apparent_temperature}°C` },
         { label: "습도", value: `${c.relative_humidity_2m}%` },
@@ -69,14 +73,6 @@ export async function fetchSeoulWeather(): Promise<WidgetPayload> {
   };
 }
 
-/** 한국 환경부 PM2.5 등급 기준(24시간 평균 기준 값을 현재값에 준용). */
-export function pm25Grade(value: number): string {
-  if (value <= 15) return "좋음";
-  if (value <= 35) return "보통";
-  if (value <= 75) return "나쁨";
-  return "매우 나쁨";
-}
-
 export async function fetchSeoulAirQuality(): Promise<WidgetPayload> {
   const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${LAT}&longitude=${LON}`
     + "&current=pm10,pm2_5,us_aqi&timezone=Asia%2FSeoul";
@@ -90,6 +86,7 @@ export async function fetchSeoulAirQuality(): Promise<WidgetPayload> {
       headline: `PM2.5 ${c.pm2_5.toFixed(1)} μg/m³`,
       subline: `서울 · ${pm25Grade(c.pm2_5)} (한국 기준 등급, 모델값)`,
       trend: c.pm2_5 > 35 ? "up" : "flat",
+      facts: { pm25: c.pm2_5, pm10: c.pm10 },
       metric: { key: "airquality-seoul-pm25", label: "서울 PM2.5(모델)", value: c.pm2_5, unit: "μg/m³" },
       details: [
         { label: "PM10", value: `${c.pm10} μg/m³` },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { QueryProvider } from "@/components/query-provider";
 import "./globals.css";
+import "./enhancements.css";
 
 export const metadata: Metadata = {
   title: "Pulseboard — 실시간 정보판",

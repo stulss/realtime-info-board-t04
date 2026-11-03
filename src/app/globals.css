@@ -80,9 +80,9 @@ a { color: inherit; }
 .group-title { margin: 0 0 12px; font-size: 12px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
 .widget-group .widget-card { min-height: 400px; }
 .widget-group[data-group="market"] .widget-card,
-.widget-group[data-group="env"] .widget-card:nth-child(n+4) { grid-column: span 3; }
-.widget-group[data-group="env"] .widget-card:nth-child(-n+3),
-.widget-group[data-group="world"] .widget-card { grid-column: span 2; }
+.widget-group[data-group="world"] .widget-card:nth-child(n+4) { grid-column: span 3; }
+.widget-group[data-group="env"] .widget-card,
+.widget-group[data-group="world"] .widget-card:nth-child(-n+3) { grid-column: span 2; }
 .widget-card__accent { position: absolute; inset: 0 0 auto; height: 4px; background: var(--accent); opacity: 0; }
 .widget-card[data-status="stale"] .widget-card__accent,
 .widget-card[data-status="maintenance"] .widget-card__accent,
