@@ -23,6 +23,7 @@ export async function fetchIssPosition(): Promise<WidgetPayload> {
     value: {
       headline: `${Math.abs(lat).toFixed(2)}°${ns}, ${Math.abs(lon).toFixed(2)}°${ew}`,
       subline: "국제우주정거장(ISS) 현재 위치",
+      facts: { lat, lon },
       details: [
         { label: "위도", value: lat.toFixed(4) },
         { label: "경도", value: lon.toFixed(4) },

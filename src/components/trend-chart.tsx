@@ -32,6 +32,7 @@ export function TrendChart({ series, unit, label }: { series: DailyLogEntry[]; u
   ].join(" ");
   const ticks = [yMin + (yMax - yMin) * 0.1, (yMin + yMax) / 2, yMax - (yMax - yMin) * 0.1];
   const labelStep = Math.max(1, Math.ceil(series.length / 8));
+  const dense = series.length > 40;
 
   return (
     <svg className="trend-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label} 날짜별 추세 차트, ${series.length}일`}>
@@ -44,9 +45,9 @@ export function TrendChart({ series, unit, label }: { series: DailyLogEntry[]; u
       {series.length > 1 && <polygon className="trend-chart__band" points={band} />}
       {series.length > 1 && <polyline className="trend-chart__line" points={line} pathLength={1} />}
       {series.map((entry, index) => (
-        <g key={entry.id} className="trend-chart__point" style={{ animationDelay: `${index * 60}ms` }}>
+        <g key={entry.id} className="trend-chart__point" style={{ animationDelay: `${Math.min(index * 20, 600)}ms` }}>
           <title>{`${entry.date} · 최신 ${fmt(entry.latest)} ${unit} · 최소 ${fmt(entry.min)} · 최대 ${fmt(entry.max)} · ${entry.samples}회`}</title>
-          <circle cx={x(index)} cy={y(entry.latest)} r={4.5} />
+          <circle cx={x(index)} cy={y(entry.latest)} r={dense ? 2.4 : 4.5} />
           {index % labelStep === 0 || index === series.length - 1 ? (
             <text className="trend-chart__axis" x={x(index)} y={H - 10} textAnchor="middle">{entry.date.slice(5)}</text>
           ) : null}

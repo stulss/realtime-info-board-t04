@@ -50,8 +50,10 @@ describe("날짜별 기록", () => {
     expect(recordMetric([], metric, "not-a-date", NOW)).toEqual([]);
   });
 
-  it("보관 기간(90일)이 지난 기록은 정리한다", () => {
-    const old = recordMetric([], metric, "2026-07-01T01:00:00.000Z", new Date("2026-07-01T02:00:00.000Z"));
+  it("보관 기간(366일)이 지난 기록은 정리하고 8월 1일 기록은 유지한다", () => {
+    const keep = recordMetric([], metric, "2026-08-01T01:00:00.000Z", new Date("2026-08-01T02:00:00.000Z"));
+    expect(recordMetric(keep, { ...metric, key: "k2" }, "2026-11-03T01:00:00.000Z", NOW)).toHaveLength(2);
+    const old = recordMetric([], metric, "2025-07-01T01:00:00.000Z", new Date("2025-07-01T02:00:00.000Z"));
     expect(recordMetric(old, { ...metric, key: "other" }, "2026-11-03T01:00:00.000Z", NOW)).toHaveLength(1);
   });
 

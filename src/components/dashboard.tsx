@@ -12,6 +12,7 @@ import {
 import { WidgetTile } from "./widget-tile";
 import { DailyCloseSync } from "./daily-close-sync";
 import { DailyLogPanel } from "./daily-log-panel";
+import { VizSection } from "./viz-section";
 import { recordWidgetMetric, seriesFor } from "@/lib/history/daily-log";
 import { useDailyLog } from "@/lib/history/use-daily-log";
 import { Briefing } from "./briefing";
@@ -150,6 +151,13 @@ function DashboardView() {
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const [currency, setCurrency] = useState<ExchangeCurrency>(DEFAULT_EXCHANGE_CURRENCY);
   const [filter, setFilter] = useState<Filter>("all");
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+
+  /** 3D 지형에서 막대를 누르면 날짜별 기록 패널로 이동한다. */
+  function pickDateFrom3D(date: string) {
+    setPickedDate(date);
+    document.getElementById("daily-log")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
@@ -174,7 +182,7 @@ function DashboardView() {
   }
 
   return (
-    <main className="dashboard-shell">
+    <main id="main" className="dashboard-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">P</span><span>Pulseboard</span></div>
         <div className="topbar-actions">
@@ -244,12 +252,14 @@ function DashboardView() {
         })}
       </section>
 
-      <DailyLogPanel />
+      <VizSection onPickDate={pickDateFrom3D} />
+
+      <DailyLogPanel selectedDate={pickedDate} onSelectDate={setPickedDate} />
       <DailyCloseSync />
 
       <footer className="page-footer">
         <span>Pulseboard</span>
-        <p>데이터는 각 공급자 API의 제공 범위와 갱신 주기를 따릅니다.</p>
+        <p>데이터는 각 공급자 API의 제공 범위와 갱신 주기를 따릅니다. <Link href="/about">데이터 출처·개인정보</Link></p>
       </footer>
     </main>
   );

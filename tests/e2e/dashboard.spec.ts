@@ -40,7 +40,12 @@ const dailyHistoryFixture = {
   ],
 };
 
+async function blockHistory(page: import("@playwright/test").Page) {
+  await page.route("**/api/history**", (route) => route.fulfill({ status: 503, json: { error: "disabled" } }));
+}
+
 async function mockDailyHistory(page: import("@playwright/test").Page) {
+  await blockHistory(page);
   await page.route("**/api/widgets/upbit-daily-history", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dailyHistoryFixture) });
   });
@@ -147,10 +152,10 @@ test("Upbit 확정 일봉 종가가 날짜별 한 줄로 자동 기록되고 어
   expect(response.ok()).toBeTruthy();
   const actual = await response.json() as typeof dailyHistoryFixture;
   expect(actual.timezone).toBe("Asia/Seoul");
-  // 2건으로 제한하지 않고 보관 기간(90일) 안의 완료 일봉을 모두 돌려준다
+  // 2건으로 제한하지 않고 시작일(8월 1일)부터 어제까지 완료 일봉을 모두 돌려준다
   expect(actual.records.length).toBeGreaterThan(2);
-  expect(actual.records.length).toBeLessThanOrEqual(90);
   expect(new Set(actual.records.map((record) => record.date)).size).toBe(actual.records.length);
+  expect(actual.records.map((record) => record.date).sort()[0]).toBe("2026-08-01");
 
   await mockDailyHistory(page);
   await page.setViewportSize({ width: 1440, height: 1100 });
@@ -162,7 +167,7 @@ test("Upbit 확정 일봉 종가가 날짜별 한 줄로 자동 기록되고 어
 
   await log.getByRole("tab", { name: /08-27/ }).click();
   const row = log.locator(".range-list li", { hasText: "Upbit BTC/KRW 일봉 종가" });
-  await expect(row).toContainText("확정 일봉 종가(자동 채움)");
+  await expect(row).toContainText("과거 원자료로 자동 채움");
   await expect(row).toContainText("160,000,000 KRW");
   await expect(row).toContainText("08-26 대비 +1.3%"); // 158,000,000 → 160,000,000
   await expect(row.locator(".range-list__delta")).toHaveAttribute("data-dir", "up");
@@ -261,6 +266,177 @@ test.describe("위치 기반 날씨", () => {
     await expect(chip).toContainText(/서울 기준|위치 확인|기본 위치/);
     await expect(page.locator(".tile", { hasText: "서울 날씨" })).toBeVisible();
     expect(widgetRequests.every((url) => !url.includes("lat="))).toBe(true);
+  });
+});
+
+test("8월 1일부터의 과거 기록이 미리 채워지고, 오늘 기록은 실시간으로 이어서 저장된다", async ({ page }) => {
+  const historyRequests: string[] = [];
+  const days = ["2026-08-01", "2026-08-02", "2026-08-03", "2026-11-02"];
+  const points = days.flatMap((date, index) => [
+    { metricKey: "weather-temp@37.6,127.0", label: "서울 기온", unit: "°C", date, value: 27 - index, min: 24 - index, max: 31 - index, sourceTimestamp: `${date}T00:00:00.000Z` },
+    { metricKey: "usgs-quake-count", label: "전 세계 M2.5+ 지진 수(24h)", unit: "건", date, value: 70 + index, sourceTimestamp: `${date}T00:00:00.000Z` },
+  ]);
+  await page.route("**/api/history**", async (route) => {
+    historyRequests.push(route.request().url());
+    await route.fulfill({ json: { from: "2026-08-01", to: "2026-11-02", fetchedAt: "2026-11-03T01:00:00.000Z", points, sources: [{ name: "mock", ok: true, count: points.length }] } });
+  });
+  await page.route("**/api/widgets/upbit-daily-history", (route) => route.fulfill({ status: 503, json: { error: "disabled" } }));
+  // 오늘(실시간) 기록: 현재 시각 기준 한 줄
+  await page.route("**/api/widgets/weather", (route) => route.fulfill({ json: {
+    value: { headline: "15°C", subline: "서울", metric: { key: "weather-temp@37.6,127.0", label: "서울 기온", value: 15, unit: "°C" } },
+    status: "ok", source: { provider: "Open-Meteo", docsUrl: "https://open-meteo.com", endpointTemplate: "GET /v1/forecast" },
+    fetchedAt: new Date().toISOString(), cacheAgeMs: 0,
+  } }));
+
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto("/");
+  const log = page.locator(".daily-log");
+
+  await expect.poll(() => historyRequests.length).toBeGreaterThan(0);
+  expect(historyRequests[0]).toContain("from=2026-08-01");
+
+  // 가장 오래된 기록은 8월 1일, 최신은 오늘
+  await expect(log.getByRole("tab", { name: /08-01/ })).toBeVisible();
+  const tabs = log.getByRole("tab");
+  const today = await page.evaluate(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
+  await expect(tabs.first()).toContainText(today.slice(5)); // 오늘이 가장 앞
+  await expect(tabs.last()).toContainText("08-01");
+
+  await log.getByRole("tab", { name: /08-01/ }).click();
+  const row = log.locator(".range-list li", { hasText: "서울 기온" });
+  await expect(row).toContainText("과거 원자료로 자동 채움");
+  await expect(row).toContainText("최소 24 °C");
+  await expect(row).toContainText("최대 31 °C");
+
+  // 오늘 줄은 과거 채움이 아니라 실시간 기록(표본 수 표시)
+  await tabs.first().click();
+  await expect(log.locator(".range-list li", { hasText: "서울 기온" })).toContainText("1회 · 마지막 저장");
+
+  // 저장 구조: 같은 지표·날짜는 한 건, 과거는 closed, 오늘은 live
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-log-v1") ?? "[]"));
+  const temps = stored.filter((entry: { metricKey: string }) => entry.metricKey === "weather-temp@37.6,127.0");
+  expect(new Set(temps.map((entry: { id: string }) => entry.id)).size).toBe(temps.length);
+  expect(temps.filter((entry: { closed?: boolean }) => entry.closed)).toHaveLength(4);
+  expect(temps.find((entry: { date: string }) => entry.date === today)?.closed).toBeFalsy();
+
+  // 새로고침해도 중복되지 않는다
+  await page.reload();
+  await expect(page.locator(".daily-log").getByRole("tab", { name: /08-01/ })).toBeVisible();
+  const again = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-log-v1") ?? "[]"));
+  expect(again.filter((entry: { metricKey: string }) => entry.metricKey === "weather-temp@37.6,127.0")).toHaveLength(temps.length);
+  await page.locator(".daily-log").screenshot({ path: `${SCREENSHOT_DIR}/14_8월1일부터_미리채움.png` });
+});
+
+test.describe("3D 시각화", () => {
+  const seed = (page: import("@playwright/test").Page) => {
+    const days = Array.from({ length: 30 }, (_, index) => `2026-10-${String(index + 1).padStart(2, "0")}`);
+    const series = [
+      { key: "weather-temp@37.6,127.0", label: "서울 기온", unit: "°C", f: (i: number) => 14 + Math.sin(i / 4) * 5 },
+      { key: "airquality-pm25@37.6,127.0", label: "서울 PM2.5(모델)", unit: "μg/m³", f: (i: number) => 25 + ((i * 7) % 30) },
+      { key: "upbit-btc-krw-close", label: "Upbit BTC/KRW 일봉 종가", unit: "KRW", f: (i: number) => 100e6 + i * 2e5 },
+    ];
+    const entries = series.flatMap((item) => days.map((date, index) => {
+      const latest = item.f(index);
+      return {
+        id: `${item.key}:${date}`, metricKey: item.key, label: item.label, unit: item.unit, date,
+        first: latest, latest, min: latest * 0.95, max: latest * 1.05, samples: 1,
+        firstAt: `${date}T00:00:00.000Z`, updatedAt: `${date}T09:00:00.000Z`, lastFetchedAt: `${date}T09:00:00.000Z`, closed: true,
+      };
+    }));
+    return page.addInitScript((value) => localStorage.setItem("pulseboard-daily-log-v1", JSON.stringify(value)), entries);
+  };
+
+  test("날짜 × 지표 3D 지형을 그리고 호버 툴팁과 클릭 이동을 지원한다", async ({ page }) => {
+    await seed(page);
+    await mockDailyHistory(page);
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/");
+
+    const section = page.locator(".viz-section");
+    await section.scrollIntoViewIfNeeded();
+    const stage = section.locator(".viz3d__stage");
+    await expect(stage.locator("canvas")).toBeVisible({ timeout: 20_000 });
+    await expect(stage).toHaveAttribute("aria-label", /3D 막대 지형/);
+    await expect(section.getByRole("list", { name: "지표 범례" }).locator("li")).toHaveCount(3);
+
+    await page.waitForTimeout(2_000); // 막대가 솟아오르는 모션이 끝날 때까지
+    const png = await stage.screenshot({ path: `${SCREENSHOT_DIR}/15_3D_지형.png` });
+    expect(png.length).toBeGreaterThan(25_000); // 빈 캔버스가 아니라 장면이 그려졌다
+
+    // 호버: 캔버스를 훑어 막대를 찾으면 툴팁이 뜬다
+    const box = (await stage.boundingBox())!;
+    let found = false;
+    await section.getByRole("button", { name: "자동 회전" }).click(); // 회전을 멈춰 좌표를 고정
+    await section.getByRole("button", { name: "정면" }).click();
+    await page.waitForTimeout(1_200);
+    for (let y = 0.15; y <= 0.95 && !found; y += 0.05) {
+      for (let x = 0.1; x <= 0.9 && !found; x += 0.03) {
+        await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
+        await page.waitForTimeout(40);
+        found = await stage.locator(".viz3d__tip").isVisible();
+      }
+    }
+    expect(found).toBe(true);
+    const tipText = await stage.locator(".viz3d__tip").innerText();
+    const date = /(\d{4}-\d{2}-\d{2})/.exec(tipText)![1];
+    await page.mouse.down();
+    await page.mouse.up();
+    // 클릭하면 날짜별 기록 패널이 그 날짜로 이동한다
+    await expect(page.locator(".daily-log").getByRole("tab", { name: new RegExp(date.slice(5)) })).toHaveAttribute("aria-selected", "true");
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/16_3D_지형_선택날짜_이동.png` });
+  });
+
+  test("3D 지구본에 지진·ISS·내 위치를 표시한다", async ({ page }) => {
+    await mockDailyHistory(page);
+    const base = { status: "ok", cacheAgeMs: 0, fetchedAt: new Date().toISOString() };
+    await page.route("**/api/widgets/usgs-earthquake", (route) => route.fulfill({ json: { ...base,
+      value: { headline: "최대 M6.1", points: [
+        { lat: 35.1, lon: 139.7, value: 6.1, label: "Tokyo, Japan", at: "2026-11-03T01:00:00.000Z" },
+        { lat: -33.4, lon: -70.6, value: 4.2, label: "Santiago, Chile", at: "2026-11-03T02:00:00.000Z" },
+        { lat: 61.2, lon: -149.9, value: 3.1, label: "Anchorage, Alaska", at: "2026-11-03T03:00:00.000Z" },
+      ] },
+      source: { provider: "USGS", docsUrl: "https://earthquake.usgs.gov", endpointTemplate: "GET /feed" } } }));
+    await page.route("**/api/widgets/iss", (route) => route.fulfill({ json: { ...base,
+      value: { headline: "ISS", facts: { lat: 20.5, lon: 40.2 } },
+      source: { provider: "Open Notify", docsUrl: "http://open-notify.org", endpointTemplate: "GET /iss-now.json" } } }));
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto("/");
+
+    const section = page.locator(".viz-section");
+    await section.getByRole("tab", { name: "3D 지구본" }).click();
+    const stage = section.locator(".viz3d__stage");
+    await expect(stage.locator("canvas")).toBeVisible({ timeout: 20_000 });
+    await expect(stage).toHaveAttribute("aria-label", /지진 3건\(규모 5 이상 1건\), ISS 위치 20\.5°, 40\.2°/);
+    await expect(section.getByRole("button", { name: "ISS" })).toBeEnabled();
+    await section.getByRole("button", { name: "내 위치" }).click();
+    await page.waitForTimeout(1_500);
+    const png = await stage.screenshot({ path: `${SCREENSHOT_DIR}/17_3D_지구본.png` });
+    expect(png.length).toBeGreaterThan(25_000);
+
+    // 다크 테마: 장면을 다시 만들어 색을 바꾼다
+    await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
+    await page.waitForTimeout(1_200);
+    const dark = await stage.screenshot({ path: `${SCREENSHOT_DIR}/18_3D_지구본_다크.png` });
+    expect(dark.length).toBeGreaterThan(25_000);
+    await expect(stage.locator("canvas")).toBeVisible();
+  });
+
+  test("모션 줄이기 설정이면 자동 회전을 끄고 3D 장면은 그대로 그린다", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await seed(page);
+    await mockDailyHistory(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    const section = page.locator(".viz-section");
+    await expect(section.locator(".viz3d__stage canvas")).toBeVisible({ timeout: 20_000 });
+    await expect(section.getByRole("button", { name: "자동 회전" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("기록이 없으면 3D 대신 안내 문구를 보인다", async ({ page }) => {
+    await mockDailyHistory(page);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/");
+    await expect(page.locator(".viz-section .viz-fallback, .viz-section .viz3d__stage canvas").first()).toBeVisible({ timeout: 20_000 });
   });
 });
 
@@ -390,6 +566,7 @@ test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세
   }, entries);
   // 일봉 자동 채움은 막아 시드한 7일만 보이게 한다
   await page.route("**/api/widgets/upbit-daily-history", (route) => route.fulfill({ status: 503, json: { error: "disabled" } }));
+  await blockHistory(page);
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/");
 
@@ -424,4 +601,68 @@ test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세
   await weatherTile.screenshot({ path: `${SCREENSHOT_DIR}/12_타일_상세_펼침.png` });
   await page.getByRole("button", { name: /^세계·생활/ }).click();
   await expect(page.locator(".tile-slot:not([hidden])")).toHaveCount(5);
+});
+
+test.describe("상용 수준 마감", () => {
+  test("보안 헤더·매니페스트·robots를 제공한다", async ({ request }) => {
+    const page = await request.get("/");
+    expect(page.headers()["x-content-type-options"]).toBe("nosniff");
+    expect(page.headers()["x-frame-options"]).toBe("DENY");
+    expect(page.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+    expect(page.headers()["permissions-policy"]).toContain("geolocation=(self)");
+    expect(page.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(page.headers()["x-powered-by"]).toBeUndefined();
+
+    const manifest = await (await request.get("/manifest.webmanifest")).json();
+    expect(manifest).toMatchObject({ short_name: "Pulseboard", display: "standalone", lang: "ko" });
+    expect((await request.get("/icon.svg")).ok()).toBeTruthy();
+    expect(await (await request.get("/robots.txt")).text()).toContain("Disallow: /api/");
+  });
+
+  test("메타데이터와 건너뛰기 링크, 키보드 포커스 표시", async ({ page }) => {
+    await mockDailyHistory(page);
+    await page.goto("/");
+    await expect(page).toHaveTitle(/Pulseboard/);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /실시간 정보판/);
+    await expect(page.locator('meta[property="og:title"]')).toHaveCount(1);
+    await expect(page.locator('meta[name="theme-color"]').first()).toHaveCount(1);
+    await page.keyboard.press("Tab");
+    const skip = page.getByRole("link", { name: "본문으로 건너뛰기" });
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeInViewport();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#main")).toBeVisible();
+  });
+
+  test("데이터 출처·개인정보 페이지와 404 페이지", async ({ page }) => {
+    await page.goto("/about");
+    await expect(page.getByRole("heading", { name: "데이터 출처와 개인정보" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "개인정보는 이렇게 다룹니다" })).toBeVisible();
+    await expect(page.getByText("좌표는 소수 둘째 자리")).toBeVisible();
+    await expect(page.getByText("비상업적 이용 한정")).toBeVisible(); // 라이선스 제약을 숨기지 않는다
+    expect(await page.locator(".about-table tbody tr").count()).toBeGreaterThanOrEqual(10);
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/19_데이터출처_개인정보.png`, fullPage: true });
+
+    const missing = await page.goto("/does-not-exist");
+    expect(missing?.status()).toBe(404);
+    await expect(page.getByRole("heading", { name: "찾는 페이지가 없습니다" })).toBeVisible();
+  });
+
+  test("정보판 푸터에서 출처 페이지로 이동한다", async ({ page }) => {
+    await mockDailyHistory(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "데이터 출처·개인정보" }).click();
+    await expect(page).toHaveURL(/\/about$/);
+  });
+
+  test("모바일(390px)에서 가로 스크롤 없이 3D 영역과 타일이 맞는다", async ({ page }) => {
+    await mockDailyHistory(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await page.waitForTimeout(800);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+    await expect(page.locator(".viz-section")).toBeVisible();
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/20_모바일_전체.png`, fullPage: true });
+  });
 });

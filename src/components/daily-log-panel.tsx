@@ -12,7 +12,8 @@ import {
   seriesFor,
 } from "@/lib/history/daily-log";
 import type { DailyLogEntry } from "@/lib/history/daily-log";
-import { UPBIT_CLOSE_SOURCE_URL } from "@/lib/history/upbit-closes";
+import { HISTORY_START_DATE, upbitDailyCount } from "@/lib/history/range";
+import { upbitSourceUrl } from "@/lib/history/upbit-closes";
 import { useDailyLog } from "@/lib/history/use-daily-log";
 import { TrendChart } from "./trend-chart";
 
@@ -32,33 +33,41 @@ function download(filename: string, content: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-export function DailyLogPanel() {
+type DailyLogPanelProps = {
+  /** 외부(3D 지형 등)에서 고른 날짜. 없으면 가장 최근 날짜. */
+  selectedDate?: string | null;
+  onSelectDate?: (date: string) => void;
+};
+
+export function DailyLogPanel({ selectedDate: controlledDate, onSelectDate }: DailyLogPanelProps = {}) {
   const entries = useDailyLog();
   const days = useMemo(() => groupByDate(entries), [entries]);
   const metrics = useMemo(() => listMetrics(entries), [entries]);
-  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const [localDate, setLocalDate] = useState<string | null>(null);
+  const pickedDate = controlledDate ?? localDate;
+  const setPickedDate = (date: string) => { setLocalDate(date); onSelectDate?.(date); };
   const [pickedMetric, setPickedMetric] = useState<string | null>(null);
 
   const selectedDate = days.some(([date]) => date === pickedDate) ? pickedDate! : days[0]?.[0];
   const selectedRows = days.find(([date]) => date === selectedDate)?.[1] ?? [];
   const metric = metrics.find((item) => item.key === pickedMetric) ?? metrics[0];
-  const series = metric ? seriesFor(entries, metric.key, 30) : [];
+  const series = metric ? seriesFor(entries, metric.key, 400) : [];
 
   // 히트맵: 최근 14일(오래된 날짜 → 최신 날짜)
   const matrixDates = days.slice(0, MATRIX_DAYS).map(([date]) => date).reverse();
   const matrixCell = (key: string, date: string) => entries.find((entry) => entry.metricKey === key && entry.date === date);
 
   return (
-    <section className="daily-log" aria-labelledby="daily-log-heading">
+    <section className="daily-log" id="daily-log" aria-labelledby="daily-log-heading">
       <div className="section-heading">
-        <div><span>02</span><h2 id="daily-log-heading">날짜별 자동 기록</h2></div>
-        <p>기준 시간대 <strong>Asia/Seoul</strong> · 최근 {DAILY_LOG_RETENTION_DAYS}일 보관</p>
+        <div><span>03</span><h2 id="daily-log-heading">날짜별 자동 기록</h2></div>
+        <p>기준 시간대 <strong>Asia/Seoul</strong> · 최대 {DAILY_LOG_RETENTION_DAYS}일 보관</p>
       </div>
 
       <div className="log-toolbar">
         <p>
           <strong>하루에 한 줄, 자동으로.</strong> 위젯이 정상 조회될 때마다 그날(KST)의 값이 지표당 한 줄로 합쳐져
-          이 브라우저에 저장됩니다(최신·최소·최대·표본 수). 접속하지 않은 날은 Upbit 확정 일봉 종가로 최대 90일치까지 채워집니다.
+          이 브라우저에 저장됩니다(최신·최소·최대·표본 수). {HISTORY_START_DATE.slice(5).replace("-", "월 ")}일부터 어제까지는 공급자의 과거 원자료로 미리 채워 두었고, 오늘부터는 실시간으로 자동 저장됩니다.
           서버에는 개인 기록을 보내지 않습니다.
         </p>
         <div>
@@ -105,7 +114,7 @@ export function DailyLogPanel() {
                   <div className="range-list__label">
                     <strong>{row.label}</strong>
                     <small>
-                      {row.closed ? "확정 일봉 종가(자동 채움)" : `${row.samples}회 · 마지막 저장 ${new Date(row.updatedAt).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}`}
+                      {row.closed ? "과거 원자료로 자동 채움" : `${row.samples}회 · 마지막 저장 ${new Date(row.updatedAt).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}`}
                     </small>
                     {previous && delta !== null && (
                       <small className="range-list__delta" data-dir={delta > 0 ? "up" : delta < 0 ? "down" : "flat"}>
@@ -182,8 +191,8 @@ export function DailyLogPanel() {
       )}
       <p className="log-source">
         <span>자동 채움 출처</span>
-        <a href={UPBIT_CLOSE_SOURCE_URL} target="_blank" rel="noreferrer">Upbit 일봉 원자료 ↗</a>
-        <code>GET /v1/candles/days?market=KRW-BTC&amp;count=91</code>
+        <a href={upbitSourceUrl()} target="_blank" rel="noreferrer">Upbit 일봉 원자료 ↗</a>
+        <code>GET /v1/candles/days?market=KRW-BTC&amp;count={upbitDailyCount()}</code>
       </p>
     </section>
   );

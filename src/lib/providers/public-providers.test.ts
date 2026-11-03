@@ -62,7 +62,7 @@ describe("public provider adapters", () => {
     expect(result.records.map((item) => item.date)).toEqual(["2026-08-26", "2026-08-25"]);
     expect(result.records[0].unit).toBe("KRW");
     expect(result.source.url).not.toMatch(/key|token|authorization/i);
-    expect(result.source.url).toContain("count=91");
+    expect(result.source.url).toContain("count=27"); // 시작일(08-01)~2026-08-27
   });
 
   it("Upbit 완료 일봉은 2건으로 제한하지 않고 오늘(진행 중) 봉만 제외해 모두 돌려준다", async () => {

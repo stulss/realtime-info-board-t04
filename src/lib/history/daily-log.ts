@@ -3,8 +3,8 @@ import type { WidgetMetric } from "@/types/widget";
 export const DAILY_LOG_STORAGE_KEY = "pulseboard-daily-log-v1";
 export const DAILY_LOG_EVENT = "pulseboard-daily-log-changed";
 export const DAILY_LOG_TIMEZONE = "Asia/Seoul" as const;
-/** 브라우저 저장 용량을 지키기 위해 보관하는 최대 일수 */
-export const DAILY_LOG_RETENTION_DAYS = 90;
+export { DAILY_LOG_RETENTION_DAYS } from "./range";
+import { DAILY_LOG_RETENTION_DAYS } from "./range";
 
 export type DailyLogEntry = {
   /** `${metricKey}:${date}` — 같은 지표·같은 날짜는 항상 한 건 */
@@ -113,6 +113,9 @@ export type DailyClose = {
   unit: string;
   date: string;
   value: number;
+  /** 그날의 최소·최대(공급자가 주는 경우). 없으면 value */
+  min?: number;
+  max?: number;
   sourceTimestamp: string;
   fetchedAt: string;
 };
@@ -129,10 +132,12 @@ export function applyDailyCloses(entries: DailyLogEntry[], closes: DailyClose[],
     if (!Number.isFinite(close.value) || !/^\d{4}-\d{2}-\d{2}$/.test(close.date)) continue;
     const id = `${close.metricKey}:${close.date}`;
     const existing = result.find((entry) => entry.id === id);
-    if (existing?.closed && existing.latest === close.value && existing.unit === close.unit) continue;
+    const min = Number.isFinite(close.min) ? Math.min(close.min!, close.value) : close.value;
+    const max = Number.isFinite(close.max) ? Math.max(close.max!, close.value) : close.value;
+    if (existing?.closed && existing.latest === close.value && existing.min === min && existing.max === max && existing.unit === close.unit) continue;
     result = commit(result, {
       id, metricKey: close.metricKey, label: close.label, unit: close.unit, date: close.date,
-      first: close.value, latest: close.value, min: close.value, max: close.value,
+      first: close.value, latest: close.value, min, max,
       samples: 1, firstAt: close.sourceTimestamp, updatedAt: now.toISOString(), lastFetchedAt: close.fetchedAt,
       closed: true,
     }, now);

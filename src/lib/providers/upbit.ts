@@ -1,5 +1,6 @@
 import type { WidgetPayload } from "@/types/widget";
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
+import { upbitDailyCount } from "@/lib/history/range";
 import {
   DAILY_RECORD_TIMEZONE,
   type DailyHistoryResponse,
@@ -19,9 +20,8 @@ type UpbitDailyCandle = {
   timestamp: number;
 };
 
-/** 날짜별 기록 보관 기간(90일) + 아직 끝나지 않은 오늘 봉 1개. 완료된 일봉은 개수를 제한하지 않고 모두 기록한다. */
-export const UPBIT_DAILY_COUNT = 91;
-const UPBIT_DAILY_URL = `https://api.upbit.com/v1/candles/days?market=KRW-BTC&count=${UPBIT_DAILY_COUNT}`;
+const dailyUrl = (now: Date = new Date()) =>
+  `https://api.upbit.com/v1/candles/days?market=KRW-BTC&count=${upbitDailyCount(now)}`;
 
 export const upbitSource: WidgetPayload["source"] = {
   provider: "Upbit",
@@ -55,7 +55,7 @@ export async function fetchUpbitTicker(): Promise<WidgetPayload> {
 }
 
 export async function fetchUpbitDailyHistory(): Promise<DailyHistoryResponse> {
-  const candles = await fetchJson<UpbitDailyCandle[]>(UPBIT_DAILY_URL, { retries: 1 });
+  const candles = await fetchJson<UpbitDailyCandle[]>(dailyUrl(), { retries: 1 });
   if (!Array.isArray(candles)) {
     throw new ProviderHttpError("Upbit 일봉 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
   }
@@ -91,8 +91,8 @@ export async function fetchUpbitDailyHistory(): Promise<DailyHistoryResponse> {
     timezone: DAILY_RECORD_TIMEZONE,
     source: {
       provider: "Upbit Open API",
-      url: UPBIT_DAILY_URL,
-      endpointTemplate: `GET /v1/candles/days?market=KRW-BTC&count=${UPBIT_DAILY_COUNT}`,
+      url: dailyUrl(),
+      endpointTemplate: `GET /v1/candles/days?market=KRW-BTC&count=${upbitDailyCount()}`,
     },
     fetchedAt,
     records,

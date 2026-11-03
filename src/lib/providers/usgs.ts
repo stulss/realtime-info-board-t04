@@ -3,7 +3,7 @@ import { fetchJson, ProviderHttpError } from "@/lib/server/http";
 
 type UsgsFeed = {
   metadata: { generated: number; count: number };
-  features: Array<{ properties: { mag: number | null; place: string | null; time: number } }>;
+  features: Array<{ properties: { mag: number | null; place: string | null; time: number }; geometry?: { coordinates?: number[] } }>;
 };
 
 export const usgsSource: WidgetPayload["source"] = {
@@ -18,9 +18,13 @@ export async function fetchUsgsEarthquakes(): Promise<WidgetPayload> {
   if (!feed?.metadata || !Array.isArray(feed.features) || !Number.isFinite(feed.metadata.generated)) {
     throw new ProviderHttpError("USGS 지진 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
   }
-  const events = feed.features
-    .map((feature) => feature.properties)
-    .filter((item) => item && typeof item.mag === "number" && Number.isFinite(item.mag));
+  const valid = feed.features.filter((feature) => feature.properties && typeof feature.properties.mag === "number" && Number.isFinite(feature.properties.mag));
+  const events = valid.map((feature) => feature.properties);
+  const points = valid.flatMap((feature) => {
+    const [lon, lat] = feature.geometry?.coordinates ?? [];
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return [];
+    return [{ lat, lon, value: feature.properties.mag!, label: feature.properties.place ?? "위치 정보 없음", at: new Date(feature.properties.time).toISOString() }];
+  }).sort((a, b) => b.value - a.value).slice(0, 300);
   const strongest = events.reduce<(typeof events)[number] | undefined>(
     (best, item) => (!best || (item.mag ?? 0) > (best.mag ?? 0) ? item : best),
     undefined,
@@ -31,6 +35,7 @@ export async function fetchUsgsEarthquakes(): Promise<WidgetPayload> {
       headline: strongest ? `최대 M${strongest.mag!.toFixed(1)}` : "규모 2.5 이상 지진 없음",
       subline: strongest?.place ?? "최근 24시간",
       metric: { key: "usgs-quake-count", label: "전 세계 M2.5+ 지진 수(24h)", value: count, unit: "건" },
+      points,
       details: [
         { label: "최근 24시간 M2.5+", value: `${count}건` },
         ...(strongest ? [{ label: "발생 시각", value: new Date(strongest.time).toISOString() }] : []),

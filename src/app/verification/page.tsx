@@ -13,7 +13,7 @@ const T04_CARDS = [
 
 export default function VerificationPage() {
   return (
-    <main className="dashboard-shell">
+    <main id="main" className="dashboard-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">P</span><span>Pulseboard</span></div>
         <Link className="text-link" href="/">실시간 화면으로 돌아가기 →</Link>
