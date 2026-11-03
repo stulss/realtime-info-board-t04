@@ -21,6 +21,8 @@ export type DailyLogEntry = {
   firstAt: string;
   updatedAt: string;
   lastFetchedAt: string;
+  /** true면 공급자가 확정한 일별 값(일봉 종가 등)으로 자동 채운 기록 */
+  closed?: boolean;
 };
 
 const KST_DATE = new Intl.DateTimeFormat("en-CA", {
@@ -93,10 +95,58 @@ export function recordMetric(
     };
   }
 
+  return commit(entries, next, now);
+}
+
+/** 항목 1건을 id 기준으로 교체하고 보관 기간을 넘긴 기록을 정리한 뒤 최신 날짜순으로 정렬한다. */
+function commit(entries: DailyLogEntry[], next: DailyLogEntry, now: Date): DailyLogEntry[] {
   const cutoff = toKstDate(new Date(now.getTime() - DAILY_LOG_RETENTION_DAYS * 86_400_000));
-  return [...entries.filter((entry) => entry.id !== id), next]
+  return [...entries.filter((entry) => entry.id !== next.id), next]
     .filter((entry) => entry.date >= cutoff)
     .sort((a, b) => b.date.localeCompare(a.date) || a.label.localeCompare(b.label, "ko"));
+}
+
+/** 공급자가 확정해 준 "그날의 값"(예: Upbit 일봉 종가). */
+export type DailyClose = {
+  metricKey: string;
+  label: string;
+  unit: string;
+  date: string;
+  value: number;
+  sourceTimestamp: string;
+  fetchedAt: string;
+};
+
+/**
+ * 확정된 일별 값을 날짜별 기록에 자동으로 채운다(순수 함수).
+ * 접속하지 않은 날도 공급자가 준 값으로 하루 한 줄이 생기고, 같은 날짜는 항상 한 건이다.
+ * 이미 같은 값으로 기록돼 있으면 참조를 그대로 돌려줘 불필요한 저장을 막고,
+ * 저장값이 원자료와 다르면 원자료로 바로잡는다.
+ */
+export function applyDailyCloses(entries: DailyLogEntry[], closes: DailyClose[], now: Date = new Date()): DailyLogEntry[] {
+  let result = entries;
+  for (const close of closes) {
+    if (!Number.isFinite(close.value) || !/^\d{4}-\d{2}-\d{2}$/.test(close.date)) continue;
+    const id = `${close.metricKey}:${close.date}`;
+    const existing = result.find((entry) => entry.id === id);
+    if (existing?.closed && existing.latest === close.value && existing.unit === close.unit) continue;
+    result = commit(result, {
+      id, metricKey: close.metricKey, label: close.label, unit: close.unit, date: close.date,
+      first: close.value, latest: close.value, min: close.value, max: close.value,
+      samples: 1, firstAt: close.sourceTimestamp, updatedAt: now.toISOString(), lastFetchedAt: close.fetchedAt,
+      closed: true,
+    }, now);
+  }
+  return result;
+}
+
+/** 직전 값 대비 변화를 "+3.1%"/"−0.4%" 형태로(이전이 0이면 절대 변화). */
+export function formatDelta(diff: number, percent: number | null): string {
+  const sign = diff > 0 ? "+" : diff < 0 ? "−" : "";
+  if (percent !== null && Math.abs(percent) >= 0.01) {
+    return `${sign}${Math.abs(percent).toFixed(Math.abs(percent) < 10 ? 1 : 0)}%`;
+  }
+  return `${sign}${new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(Math.abs(diff))}`;
 }
 
 export function groupByDate(entries: DailyLogEntry[]): Array<[string, DailyLogEntry[]]> {
@@ -118,6 +168,35 @@ export function listMetrics(entries: DailyLogEntry[]): Array<{ key: string; labe
   const map = new Map<string, { key: string; label: string; unit: string }>();
   for (const entry of entries) map.set(entry.metricKey, { key: entry.metricKey, label: entry.label, unit: entry.unit });
   return [...map.values()].sort((a, b) => a.label.localeCompare(b.label, "ko"));
+}
+
+/** 표시용 숫자 포맷: 부동소수 노이즈(13.950000000000001)를 최대 소수 2자리로 정리한다. */
+export function fmtNum(value: number): string {
+  return new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value);
+}
+
+export type PreviousComparison = {
+  previousDate: string;
+  diff: number;
+  /** 이전 값이 0이면 null */
+  percent: number | null;
+  direction: "up" | "down" | "flat";
+};
+
+/**
+ * 가장 최근 기록(history 마지막)이 아닌, 그 직전 "다른 날짜" 기록과 현재값을 비교한다.
+ * history는 오래된 날짜 → 최신 순서. 현재값이 오늘 기록보다 더 새로우므로 current를 따로 받는다.
+ */
+export function compareToPrevious(history: DailyLogEntry[], current: number): PreviousComparison | null {
+  if (history.length < 2 || !Number.isFinite(current)) return null;
+  const previous = history[history.length - 2];
+  const diff = current - previous.latest;
+  return {
+    previousDate: previous.date,
+    diff,
+    percent: previous.latest === 0 ? null : (diff / Math.abs(previous.latest)) * 100,
+    direction: diff > 0 ? "up" : diff < 0 ? "down" : "flat",
+  };
 }
 
 /** 값의 위치를 0~1로 환산한다. 범위가 0이면 0.5. */
@@ -158,6 +237,12 @@ function saveDailyLog(entries: DailyLogEntry[]): void {
 export function recordWidgetMetric(metric: WidgetMetric, fetchedAt: string): void {
   const current = loadDailyLog();
   const next = recordMetric(current, metric, fetchedAt);
+  if (next !== current) saveDailyLog(next);
+}
+
+export function recordDailyCloses(closes: DailyClose[]): void {
+  const current = loadDailyLog();
+  const next = applyDailyCloses(current, closes);
   if (next !== current) saveDailyLog(next);
 }
 

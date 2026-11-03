@@ -5,11 +5,14 @@ import {
   DAILY_LOG_RETENTION_DAYS,
   clearDailyLog,
   dailyLogToCsv,
+  formatDelta,
   groupByDate,
   listMetrics,
   ratio,
   seriesFor,
 } from "@/lib/history/daily-log";
+import type { DailyLogEntry } from "@/lib/history/daily-log";
+import { UPBIT_CLOSE_SOURCE_URL } from "@/lib/history/upbit-closes";
 import { useDailyLog } from "@/lib/history/use-daily-log";
 import { TrendChart } from "./trend-chart";
 
@@ -54,8 +57,9 @@ export function DailyLogPanel() {
 
       <div className="log-toolbar">
         <p>
-          위젯이 정상 조회될 때마다 그날(KST)의 최신·최소·최대값을 이 브라우저에 저장합니다.
-          같은 날짜는 지표당 한 줄로 합쳐지며, 서버에는 개인 기록을 보내지 않습니다.
+          <strong>하루에 한 줄, 자동으로.</strong> 위젯이 정상 조회될 때마다 그날(KST)의 값이 지표당 한 줄로 합쳐져
+          이 브라우저에 저장됩니다(최신·최소·최대·표본 수). 접속하지 않은 날은 Upbit 확정 일봉 종가로 최대 90일치까지 채워집니다.
+          서버에는 개인 기록을 보내지 않습니다.
         </p>
         <div>
           <button type="button" disabled={entries.length === 0} onClick={() => download("pulseboard-daily-log.csv", `﻿${dailyLogToCsv(entries)}`, "text/csv;charset=utf-8")}>CSV 내보내기</button>
@@ -92,13 +96,24 @@ export function DailyLogPanel() {
           <div className="log-day" role="tabpanel" aria-label={`${selectedDate} 기록`}>
             <h3>{selectedDate}<small>{selectedRows.length}개 지표 기록됨</small></h3>
             <ul className="range-list">
-              {selectedRows.map((row) => (
+              {selectedRows.map((row) => {
+                const previous = previousOf(entries, row);
+                const delta = previous ? row.latest - previous.latest : null;
+                const percent = previous && previous.latest !== 0 ? ((row.latest - previous.latest) / Math.abs(previous.latest)) * 100 : null;
+                return (
                 <li key={row.id}>
                   <div className="range-list__label">
                     <strong>{row.label}</strong>
-                    <small>{row.samples}회 · 마지막 저장 {new Date(row.updatedAt).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</small>
+                    <small>
+                      {row.closed ? "확정 일봉 종가(자동 채움)" : `${row.samples}회 · 마지막 저장 ${new Date(row.updatedAt).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}`}
+                    </small>
+                    {previous && delta !== null && (
+                      <small className="range-list__delta" data-dir={delta > 0 ? "up" : delta < 0 ? "down" : "flat"}>
+                        {delta > 0 ? "▲" : delta < 0 ? "▼" : "■"} {previous.date.slice(5)} 대비 {formatDelta(delta, percent)}
+                      </small>
+                    )}
                   </div>
-                  <div className="range-bar" title={`최소 ${formatNumber(row.min, row.unit)} ~ 최대 ${formatNumber(row.max, row.unit)}`}>
+                  <div className="range-bar" data-flat={row.min === row.max || undefined} title={row.min === row.max ? "범위 없음(값이 하나뿐)" : `최소 ${formatNumber(row.min, row.unit)} ~ 최대 ${formatNumber(row.max, row.unit)}`}>
                     <i className="range-bar__span" style={{ left: "0%", width: "100%" }} />
                     <i className="range-bar__marker" style={{ left: `${ratio(row.latest, row.min, row.max) * 100}%` }} />
                   </div>
@@ -108,12 +123,15 @@ export function DailyLogPanel() {
                     <span>최대 {formatNumber(row.max, row.unit)}</span>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           </div>
 
           <div className="log-grid">
-            <div className="log-matrix history-table-wrap">
+            <details className="log-matrix-wrap">
+              <summary>날짜 × 지표 전체 표 보기 <small>(최근 {matrixDates.length}일 · {metrics.length}개 지표)</small></summary>
+              <div className="log-matrix history-table-wrap">
               <table className="history-table">
                 <caption>날짜 × 지표 한눈에 보기 (최근 {matrixDates.length}일, 색이 진할수록 그 지표의 높은 값)</caption>
                 <thead>
@@ -146,7 +164,8 @@ export function DailyLogPanel() {
                   })}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </details>
 
             <div className="log-trend">
               <div className="log-trend__head">
@@ -161,6 +180,18 @@ export function DailyLogPanel() {
           </div>
         </>
       )}
+      <p className="log-source">
+        <span>자동 채움 출처</span>
+        <a href={UPBIT_CLOSE_SOURCE_URL} target="_blank" rel="noreferrer">Upbit 일봉 원자료 ↗</a>
+        <code>GET /v1/candles/days?market=KRW-BTC&amp;count=91</code>
+      </p>
     </section>
   );
+}
+
+/** 같은 지표의 바로 이전 기록(더 오래된 날짜 중 가장 최근). */
+function previousOf(entries: DailyLogEntry[], row: DailyLogEntry): DailyLogEntry | undefined {
+  return entries
+    .filter((entry) => entry.metricKey === row.metricKey && entry.date < row.date)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
 }

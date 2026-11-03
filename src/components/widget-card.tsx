@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { formatAbsoluteTime, formatCountdown, formatRelativeTime } from "@/lib/time";
 import { FAILURE_LABELS } from "@/lib/client/widget-state";
 import type { WidgetPayload } from "@/types/widget";
-import { ratio, type DailyLogEntry } from "@/lib/history/daily-log";
+import { fmtNum, ratio, type DailyLogEntry } from "@/lib/history/daily-log";
 import { Sparkline } from "./sparkline";
 import { StatusBadge } from "./status-badge";
 
@@ -35,7 +35,7 @@ function HistoryStrip({ name, history }: { name: string; history: DailyLogEntry[
             <i className="range-bar__marker" style={{ left: `${ratio(today.latest, today.min, today.max) * 100}%` }} />
           </div>
           <small className="widget-card__history-note">
-            {today.date.slice(5)} · {today.min}~{today.max} {today.unit} · {today.samples}회 기록
+            {today.date.slice(5)} · {fmtNum(today.min)}~{fmtNum(today.max)} {today.unit} · {today.samples}회 기록
           </small>
         </>
       ) : (

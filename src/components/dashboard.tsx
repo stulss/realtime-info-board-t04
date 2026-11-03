@@ -9,50 +9,76 @@ import {
   EXCHANGE_CURRENCIES,
   type ExchangeCurrency,
 } from "@/lib/widget-options";
-import { WidgetCard } from "./widget-card";
-import { DailyHistoryPanel } from "./daily-history-panel";
+import { WidgetTile } from "./widget-tile";
+import { DailyCloseSync } from "./daily-close-sync";
 import { DailyLogPanel } from "./daily-log-panel";
 import { recordWidgetMetric, seriesFor } from "@/lib/history/daily-log";
 import { useDailyLog } from "@/lib/history/use-daily-log";
 import { Briefing } from "./briefing";
+import { LocationChip, LocationProvider, useLocation } from "./location-provider";
+import { placeQuery, type Place } from "@/lib/location";
 import {
   displayPayloadAfterFailure,
   fetchWidgetPayload,
 } from "@/lib/client/widget-state";
 
-const WIDGETS = [
-  { id: "upbit-ticker", group: "market", name: "비트코인", icon: "₿", interval: 20_000 },
-  { id: "coingecko", group: "market", name: "이더리움 (CoinGecko)", icon: "Ξ", interval: 2 * 60_000 },
-  { id: "exchange-rate", group: "market", name: "원·달러 고시환율", icon: "₩", interval: 60 * 60_000 },
-  { id: "frankfurter-rate", group: "market", name: "USD/KRW 국제 참조환율", icon: "$", interval: 60 * 60_000 },
-  { id: "kma-weather", group: "env", name: "기상청 서울 날씨", icon: "☀", interval: 10 * 60_000 },
-  { id: "weather", group: "env", name: "서울 날씨 (Open-Meteo)", icon: "☁", interval: 10 * 60_000 },
-  { id: "weather-forecast", group: "env", name: "서울 오늘 예보", icon: "◐", interval: 60 * 60_000 },
-  { id: "airkorea", group: "env", name: "에어코리아 미세먼지", icon: "≋", interval: 30 * 60_000 },
-  { id: "air-quality", group: "env", name: "서울 대기질 (Open-Meteo)", icon: "◌", interval: 30 * 60_000 },
-  { id: "sensor-community", group: "env", name: "시민 센서 PM2.5", icon: "⌁", interval: 5 * 60_000 },
-  { id: "usgs-earthquake", group: "world", name: "전 세계 지진 (USGS)", icon: "〰", interval: 5 * 60_000 },
-  { id: "iss", group: "world", name: "국제우주정거장 위치", icon: "✦", interval: 15_000 },
-  { id: "kp-index", group: "world", name: "우주날씨 (지자기 Kp)", icon: "☄", interval: 15 * 60_000 },
-  { id: "holiday", group: "world", name: "다음 공휴일", icon: "★", interval: 60 * 60_000 },
-  { id: "status", group: "world", name: "GitHub 서비스 상태", icon: "◉", interval: 5 * 60_000 },
-] as const;
+type Group = "market" | "env" | "world";
+type WidgetDef = {
+  id: string;
+  group: Group;
+  /** 위치 기반 위젯은 현재 위치로 이름을 만든다. */
+  name: string | ((place: Place) => string);
+  icon: string;
+  interval: number;
+  size?: "wide";
+  /** true면 내 위치(lat, lon, place, sido)를 API에 전달한다. */
+  located?: boolean;
+};
 
-const GROUPS = [
-  { id: "market", title: "시세 · 환율" },
-  { id: "env", title: "날씨 · 대기" },
-  { id: "world", title: "세계 · 생활" },
+const titleOf = (widget: WidgetDef, place: Place) => (typeof widget.name === "function" ? widget.name(place) : widget.name);
+
+/** 중요도 순서. 핵심 2개는 넓게, 나머지는 균일한 타일. */
+const WIDGETS: readonly WidgetDef[] = [
+  { id: "weather", group: "env", name: (p) => `${p.name} 날씨`, icon: "☁", interval: 10 * 60_000, size: "wide", located: true },
+  { id: "upbit-ticker", group: "market", name: "비트코인", icon: "₿", interval: 20_000, size: "wide" },
+  { id: "weather-forecast", group: "env", name: (p) => `${p.name} 오늘 예보`, icon: "◐", interval: 60 * 60_000, located: true },
+  { id: "air-quality", group: "env", name: (p) => `${p.name} 대기질`, icon: "◌", interval: 30 * 60_000, located: true },
+  { id: "exchange-rate", group: "market", name: "원·달러 고시환율", icon: "₩", interval: 60 * 60_000 },
+  { id: "coingecko", group: "market", name: "이더리움", icon: "Ξ", interval: 2 * 60_000 },
+  { id: "holiday", group: "world", name: "다음 공휴일", icon: "★", interval: 60 * 60_000 },
+  { id: "usgs-earthquake", group: "world", name: "전 세계 지진", icon: "〰", interval: 5 * 60_000 },
+  { id: "status", group: "world", name: "GitHub 상태", icon: "◉", interval: 5 * 60_000 },
+  { id: "kp-index", group: "world", name: "우주날씨 Kp", icon: "☄", interval: 15 * 60_000 },
+  { id: "iss", group: "world", name: "ISS 위치", icon: "✦", interval: 15_000 },
+  { id: "frankfurter-rate", group: "market", name: "USD/KRW 국제환율", icon: "$", interval: 60 * 60_000 },
+  { id: "sensor-community", group: "env", name: "주변 시민 센서 PM2.5", icon: "⌁", interval: 5 * 60_000, located: true },
+  { id: "kma-weather", group: "env", name: (p) => `기상청 ${p.name}`, icon: "☀", interval: 10 * 60_000, located: true },
+  { id: "airkorea", group: "env", name: (p) => `에어코리아 ${p.sido ?? p.name}`, icon: "≋", interval: 30 * 60_000, located: true },
+];
+
+const FILTERS = [
+  { id: "all", title: "전체" },
+  { id: "market", title: "시세·환율" },
+  { id: "env", title: "날씨·대기" },
+  { id: "world", title: "세계·생활" },
 ] as const;
+type Filter = (typeof FILTERS)[number]["id"];
 
 function DashboardWidget({
   widget,
-  requestPath = `/api/widgets/${widget.id}`,
+  requestPath,
   controls,
+  hidden,
 }: {
-  widget: (typeof WIDGETS)[number];
+  widget: WidgetDef;
   requestPath?: string;
   controls?: ReactNode;
+  hidden: boolean;
 }) {
+  const { place } = useLocation();
+  const title = titleOf(widget, place);
+  const locQuery = widget.located ? placeQuery(place) : "";
+  requestPath ??= locQuery ? `/api/widgets/${widget.id}?${locQuery}` : `/api/widgets/${widget.id}`;
   const query = useQuery({
     queryKey: ["widget", widget.id, requestPath],
     queryFn: () => fetchWidgetPayload(requestPath),
@@ -73,7 +99,7 @@ function DashboardWidget({
   }, [metric, metricFetchedAt]);
 
   const sourceFallback: WidgetPayload["source"] = {
-    provider: widget.name,
+    provider: title,
     docsUrl: "#",
     endpointTemplate: `/api/widgets/${widget.id}`,
   };
@@ -89,20 +115,32 @@ function DashboardWidget({
     ? displayPayloadAfterFailure(query.data, query.error, sourceFallback)
     : query.data ?? fallback;
 
+  // 숨겨도 쿼리는 유지해 기록·브리핑이 끊기지 않게 한다.
   return (
-    <WidgetCard
-      icon={widget.icon}
-      name={widget.name}
-      data={displayData}
-      isRefreshing={query.isFetching}
-      onRefresh={() => void query.refetch()}
-      controls={controls}
-      history={history}
-    />
+    <div className="tile-slot" hidden={hidden} data-empty={!displayData.value || undefined} data-size={widget.size}>
+      <WidgetTile
+        icon={widget.icon}
+        name={title}
+        data={displayData}
+        isRefreshing={query.isFetching}
+        onRefresh={() => void query.refetch()}
+        controls={controls}
+        history={history}
+        size={widget.size}
+      />
+    </div>
   );
 }
 
 export function Dashboard() {
+  return (
+    <LocationProvider>
+      <DashboardView />
+    </LocationProvider>
+  );
+}
+
+function DashboardView() {
   const queryClient = useQueryClient();
   const [isDark, setIsDark] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -111,6 +149,7 @@ export function Dashboard() {
   });
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const [currency, setCurrency] = useState<ExchangeCurrency>(DEFAULT_EXCHANGE_CURRENCY);
+  const [filter, setFilter] = useState<Filter>("all");
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
@@ -134,8 +173,6 @@ export function Dashboard() {
     setIsRefreshingAll(false);
   }
 
-  const exchangeWidget = WIDGETS.find(({ id }) => id === "exchange-rate")!;
-
   return (
     <main className="dashboard-shell">
       <header className="topbar">
@@ -146,15 +183,14 @@ export function Dashboard() {
         </div>
       </header>
 
-      <section className="hero">
+      <section className="dash-head">
         <div>
-          <p className="eyebrow">PERSONAL LIVE INTELLIGENCE</p>
-          <h1>오늘 필요한 정보만,<br /><em>근거와 함께.</em></h1>
-          <p className="hero-copy">값만 보여주지 않습니다. 공급자, 원천 시각, 실제 조회 시각까지 한눈에 확인하세요.</p>
+          <p className="eyebrow">{currentDate} · PERSONAL LIVE BOARD</p>
+          <h1>오늘 한눈에</h1>
         </div>
-        <div className="hero-meta">
+        <div className="dash-head__meta">
+          <LocationChip />
           <span className="live-dot"><i /> LIVE</span>
-          <strong>{currentDate}</strong>
           <button className="refresh-all" type="button" onClick={() => void refreshAll()} disabled={isRefreshingAll}>
             <span className={isRefreshingAll ? "spin" : ""}>↻</span>{isRefreshingAll ? "갱신 중" : "전체 새로고침"}
           </button>
@@ -165,19 +201,27 @@ export function Dashboard() {
 
       <section className="section-heading">
         <div><span>01</span><h2>내 정보판</h2></div>
-        <p>{WIDGETS.length}개의 공개 데이터 소스 · 정상 조회값은 날짜별로 자동 기록</p>
+        <div className="filter-chips" role="group" aria-label="위젯 분류">
+          {FILTERS.map((item) => {
+            const count = item.id === "all" ? WIDGETS.length : WIDGETS.filter((widget) => widget.group === item.id).length;
+            return (
+              <button key={item.id} type="button" className="filter-chip" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>
+                {item.title}<small>{count}</small>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
-      {GROUPS.map((group) => (
-        <section key={group.id} className="widget-group" data-group={group.id} aria-label={`${group.title} 위젯`}>
-          <h3 className="group-title">{group.title}</h3>
-          <div className="widget-grid">
-            {WIDGETS.filter((widget) => widget.group === group.id).map((widget) => {
+      <section className="tile-grid" aria-label="실시간 정보 위젯">
+        {WIDGETS.map((widget) => {
+          const hidden = filter !== "all" && widget.group !== filter;
           if (widget.id === "exchange-rate") {
             return (
               <DashboardWidget
                 key={widget.id}
-                widget={exchangeWidget}
+                widget={widget}
+                hidden={hidden}
                 requestPath={`/api/widgets/exchange-rate?currency=${encodeURIComponent(currency)}`}
                 controls={(
                   <label className="widget-select" htmlFor="exchange-currency">
@@ -196,15 +240,12 @@ export function Dashboard() {
               />
             );
           }
-          return <DashboardWidget key={widget.id} widget={widget} />;
+          return <DashboardWidget key={widget.id} widget={widget} hidden={hidden} />;
         })}
-          </div>
-        </section>
-      ))}
+      </section>
 
       <DailyLogPanel />
-
-      <DailyHistoryPanel />
+      <DailyCloseSync />
 
       <footer className="page-footer">
         <span>Pulseboard</span>

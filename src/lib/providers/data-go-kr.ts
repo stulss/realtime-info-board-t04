@@ -1,21 +1,18 @@
 import type { WidgetPayload } from "@/types/widget";
 import { ProviderHttpError } from "@/lib/server/http";
-
-/** 서울 중구 기상청 격자 좌표 */
-const KMA_NX = 60;
-const KMA_NY = 127;
+import { DEFAULT_PLACE, isInKorea, toKmaGrid, type Place } from "@/lib/location";
 
 export const airKoreaSource: WidgetPayload["source"] = {
   provider: "에어코리아(한국환경공단)",
   docsUrl: "https://www.data.go.kr/data/15073861/openapi.do",
-  endpointTemplate: "GET /B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?serviceKey={REDACTED}&sidoName=서울",
+  endpointTemplate: "GET /B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty?serviceKey={REDACTED}&sidoName={시도}",
   attribution: "공공데이터포털 · 한국환경공단 에어코리아 대기오염정보",
 };
 
 export const kmaSource: WidgetPayload["source"] = {
   provider: "기상청 단기예보(초단기실황)",
   docsUrl: "https://www.data.go.kr/data/15084084/openapi.do",
-  endpointTemplate: "GET /1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey={REDACTED}&nx=60&ny=127",
+  endpointTemplate: "GET /1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?serviceKey={REDACTED}&nx={격자X}&ny={격자Y}",
   attribution: "공공데이터포털 · 기상청 단기예보 조회서비스",
 };
 
@@ -91,29 +88,40 @@ type AirItem = {
   khaiGrade?: string;
 };
 
-const KHAI_GRADE: Record<string, string> = { "1": "좋음", "2": "보통", "3": "나쁨", "4": "매우 나쁨" };
+const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
 
-export async function fetchAirKorea(station = process.env.AIRKOREA_STATION?.trim() || "중구"): Promise<WidgetPayload> {
+/** 내 위치가 속한 시·도의 측정소 PM2.5 평균. 시·도를 알 수 없으면(한국 밖) 안내 오류. */
+export async function fetchAirKorea(place: Place = DEFAULT_PLACE): Promise<WidgetPayload> {
+  if (!place.sido) {
+    throw new ProviderHttpError("에어코리아는 한국 시·도 단위로만 제공됩니다. 현재 위치가 한국이 아니거나 시·도를 확인하지 못했습니다.", 400);
+  }
   const key = requireKey();
   const url = "http://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty"
-    + `?serviceKey=${encodeURIComponent(key)}&returnType=json&numOfRows=100&pageNo=1&sidoName=${encodeURIComponent("서울")}&ver=1.0`;
+    + `?serviceKey=${encodeURIComponent(key)}&returnType=json&numOfRows=300&pageNo=1&sidoName=${encodeURIComponent(place.sido)}&ver=1.0`;
   const items = await fetchDataGoKr<AirItem[]>(url);
-  const item = Array.isArray(items) ? items.find((entry) => entry.stationName === station) : undefined;
-  const pm25 = Number(item?.pm25Value);
-  const pm10 = Number(item?.pm10Value);
-  if (!item || !Number.isFinite(pm25)) {
-    throw new ProviderHttpError(`에어코리아에서 '${station}' 측정소의 PM2.5 값을 찾지 못했습니다.`, 503);
+  const valid = Array.isArray(items)
+    ? items.filter((entry) => Number.isFinite(Number(entry.pm25Value)) && entry.pm25Value !== "")
+    : [];
+  if (valid.length === 0) {
+    throw new ProviderHttpError(`에어코리아에서 '${place.sido}' 측정소의 PM2.5 값을 찾지 못했습니다.`, 503);
   }
+  const pm25 = Number(mean(valid.map((entry) => Number(entry.pm25Value))).toFixed(1));
+  const pm10Values = valid.map((entry) => Number(entry.pm10Value)).filter((value) => Number.isFinite(value));
+  const worst = valid.reduce((best, entry) => (Number(entry.pm25Value) > Number(best.pm25Value) ? entry : best));
+  const latest = valid.map((entry) => entry.dataTime).sort().at(-1) ?? "";
   return {
     value: {
       headline: `PM2.5 ${pm25} μg/m³`,
-      subline: `서울 ${station} 측정소 · ${KHAI_GRADE[item.khaiGrade ?? ""] ?? "통합대기 등급 정보 없음"}`,
-      metric: { key: `airkorea-${station}-pm25`, label: `에어코리아 ${station} PM2.5`, value: pm25, unit: "μg/m³" },
-      details: [{ label: "PM10", value: Number.isFinite(pm10) ? `${pm10} μg/m³` : "측정값 없음" }],
+      subline: `${place.sido} 평균 · 측정소 ${valid.length}곳`,
+      metric: { key: `airkorea-${place.sido}-pm25`, label: `에어코리아 ${place.sido} PM2.5 평균`, value: pm25, unit: "μg/m³" },
+      details: [
+        { label: "PM10 평균", value: pm10Values.length ? `${Number(mean(pm10Values).toFixed(1))} μg/m³` : "측정값 없음" },
+        { label: "가장 높은 곳", value: `${worst.stationName} ${worst.pm25Value}` },
+      ],
     },
     status: "ok",
     source: airKoreaSource,
-    sourceTimestamp: `${item.dataTime.replace(" ", "T")}:00+09:00`,
+    sourceTimestamp: latest ? `${latest.replace(" ", "T")}:00+09:00` : undefined,
     fetchedAt: new Date().toISOString(),
     nextRefreshAt: new Date(Date.now() + 30 * 60_000).toISOString(),
     cacheAgeMs: 0,
@@ -134,12 +142,16 @@ export function kmaBaseTime(now = new Date()): { baseDate: string; baseTime: str
 
 const PTY: Record<string, string> = { "0": "강수 없음", "1": "비", "2": "비/눈", "3": "눈", "5": "빗방울", "6": "빗방울/눈날림", "7": "눈날림" };
 
-export async function fetchKmaWeather(now = new Date()): Promise<WidgetPayload> {
+export async function fetchKmaWeather(place: Place = DEFAULT_PLACE, now = new Date()): Promise<WidgetPayload> {
+  if (!isInKorea(place.lat, place.lon)) {
+    throw new ProviderHttpError("기상청 실황은 한국 안의 위치에서만 제공됩니다.", 400);
+  }
   const key = requireKey();
+  const { nx, ny } = toKmaGrid(place.lat, place.lon);
   const { baseDate, baseTime } = kmaBaseTime(now);
   const url = "http://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst"
     + `?serviceKey=${encodeURIComponent(key)}&pageNo=1&numOfRows=10&dataType=JSON`
-    + `&base_date=${baseDate}&base_time=${baseTime}&nx=${KMA_NX}&ny=${KMA_NY}`;
+    + `&base_date=${baseDate}&base_time=${baseTime}&nx=${nx}&ny=${ny}`;
   const items = await fetchDataGoKr<{ item: KmaItem[] }>(url);
   const list = items.item;
   const value = (category: string) => Number(list?.find((entry) => entry.category === category)?.obsrValue);
@@ -151,12 +163,13 @@ export async function fetchKmaWeather(now = new Date()): Promise<WidgetPayload> 
   return {
     value: {
       headline: `${temp.toFixed(1)}°C`,
-      subline: `서울 중구 · ${PTY[rain] ?? "강수 형태 미확인"} (기상청 실황)`,
-      metric: { key: "kma-seoul-temp", label: "기상청 서울 기온", value: temp, unit: "°C" },
+      subline: `${place.name} · ${PTY[rain] ?? "강수 형태 미확인"} (기상청 실황)`,
+      metric: { key: `kma-temp@${nx},${ny}`, label: `기상청 ${place.name} 기온`, value: temp, unit: "°C" },
       details: [
         { label: "습도", value: `${value("REH")}%` },
         { label: "1시간 강수", value: String(list.find((entry) => entry.category === "RN1")?.obsrValue ?? "-") },
         { label: "풍속", value: `${value("WSD")}m/s` },
+        { label: "기상청 격자", value: `${nx}, ${ny}` },
       ],
     },
     status: "ok",

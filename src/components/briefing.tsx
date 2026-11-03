@@ -3,14 +3,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchWidgetPayload } from "@/lib/client/widget-state";
 import { pm25Grade, uvGrade } from "@/lib/air-grade";
+import { placeQuery } from "@/lib/location";
 import type { WidgetPayload } from "@/types/widget";
+import { useLocation } from "./location-provider";
 
 type Tone = "good" | "warn" | "bad" | "idle";
 type Tile = { icon: string; label: string; value: string; note: string; tone: Tone };
 
 /** 위젯 카드와 같은 queryKey를 써서 추가 네트워크 요청 없이 캐시를 공유한다. */
-function useWidget(id: string, interval: number): WidgetPayload | undefined {
-  const path = `/api/widgets/${id}`;
+function useWidget(id: string, interval: number, located = false): WidgetPayload | undefined {
+  const { place } = useLocation();
+  const query = located ? placeQuery(place) : "";
+  const path = query ? `/api/widgets/${id}?${query}` : `/api/widgets/${id}`;
   return useQuery({
     queryKey: ["widget", id, path],
     queryFn: () => fetchWidgetPayload(path),
@@ -59,17 +63,14 @@ export function buildBriefing(
 }
 
 export function Briefing() {
-  const forecast = useWidget("weather-forecast", 60 * 60_000);
-  const air = useWidget("air-quality", 30 * 60_000);
+  const forecast = useWidget("weather-forecast", 60 * 60_000, true);
+  const air = useWidget("air-quality", 30 * 60_000, true);
   const holiday = useWidget("holiday", 60 * 60_000);
   const tiles = buildBriefing(forecast, air, holiday);
 
   return (
     <section className="briefing" aria-labelledby="briefing-heading">
-      <div className="briefing__head">
-        <p className="eyebrow">TODAY BRIEFING</p>
-        <h2 id="briefing-heading">오늘 한눈에</h2>
-      </div>
+      <h2 id="briefing-heading" className="sr-only">오늘 브리핑</h2>
       <ul className="briefing__tiles">
         {tiles.map((tile, index) => (
           <li key={tile.label} className="briefing__tile" data-tone={tile.tone} style={{ animationDelay: `${index * 70}ms` }}>

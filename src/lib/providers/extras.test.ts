@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { daysBetween, fetchKpIndex, fetchNextHoliday, fetchSeoulForecast } from "./forecast-extras";
+import { daysBetween, fetchKpIndex, fetchNextHoliday, fetchForecast } from "./forecast-extras";
 import { kpGrade, pm25Grade, uvGrade } from "@/lib/air-grade";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -21,7 +21,7 @@ describe("일간 예보·공휴일·Kp adapter", () => {
         temperature_2m_min: [6.1, 5, 4],
       },
     });
-    const result = await fetchSeoulForecast();
+    const result = await fetchForecast();
     expect(result.value?.headline).toBe("15° / 6°");
     expect(result.value?.metric?.value).toBe(15.4);
     expect(result.value?.facts).toMatchObject({ precipProbability: 60, uvMax: 3.9 });
@@ -31,7 +31,7 @@ describe("일간 예보·공휴일·Kp adapter", () => {
 
   it("일간 예보: 필수 배열이 없으면 schema_changed", async () => {
     stubFetch({ daily: { time: ["2026-11-03"] } });
-    await expect(fetchSeoulForecast()).rejects.toMatchObject({ kind: "schema_changed" });
+    await expect(fetchForecast()).rejects.toMatchObject({ kind: "schema_changed" });
   });
 
   it("공휴일: KST 오늘 기준 D-day와 요일을 계산한다", async () => {

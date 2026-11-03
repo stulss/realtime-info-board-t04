@@ -19,7 +19,9 @@ type UpbitDailyCandle = {
   timestamp: number;
 };
 
-const UPBIT_DAILY_URL = "https://api.upbit.com/v1/candles/days?market=KRW-BTC&count=3";
+/** 날짜별 기록 보관 기간(90일) + 아직 끝나지 않은 오늘 봉 1개. 완료된 일봉은 개수를 제한하지 않고 모두 기록한다. */
+export const UPBIT_DAILY_COUNT = 91;
+const UPBIT_DAILY_URL = `https://api.upbit.com/v1/candles/days?market=KRW-BTC&count=${UPBIT_DAILY_COUNT}`;
 
 export const upbitSource: WidgetPayload["source"] = {
   provider: "Upbit",
@@ -63,8 +65,8 @@ export async function fetchUpbitDailyHistory(): Promise<DailyHistoryResponse> {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-  const completed = candles.filter((candle) => candle.candle_date_time_kst?.slice(0, 10) < today).slice(0, 2);
-  if (completed.length < 2) throw new ProviderHttpError("Upbit 완료 일봉 2건이 없습니다.", 503);
+  const completed = candles.filter((candle) => candle.candle_date_time_kst?.slice(0, 10) < today);
+  if (completed.length < 1) throw new ProviderHttpError("Upbit 완료 일봉이 없습니다.", 503);
   const fetchedAt = new Date().toISOString();
   const records = completed.map((candle) => {
     if (!Number.isFinite(candle.trade_price) || !candle.candle_date_time_kst) {
@@ -90,7 +92,7 @@ export async function fetchUpbitDailyHistory(): Promise<DailyHistoryResponse> {
     source: {
       provider: "Upbit Open API",
       url: UPBIT_DAILY_URL,
-      endpointTemplate: "GET /v1/candles/days?market=KRW-BTC&count=3",
+      endpointTemplate: `GET /v1/candles/days?market=KRW-BTC&count=${UPBIT_DAILY_COUNT}`,
     },
     fetchedAt,
     records,

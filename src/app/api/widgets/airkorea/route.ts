@@ -1,4 +1,4 @@
 import { airKoreaSource, fetchAirKorea } from "@/lib/providers/data-go-kr";
-import { createWidgetRoute } from "@/lib/server/widget-route";
+import { createPlaceRoute } from "@/lib/server/widget-route";
 
-export const GET = createWidgetRoute("airkorea", airKoreaSource, 30 * 60_000, () => fetchAirKorea());
+export const GET = createPlaceRoute("airkorea", airKoreaSource, 30 * 60_000, (place) => fetchAirKorea(place));

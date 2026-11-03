@@ -3,6 +3,7 @@ import { ProviderHttpError } from "./http";
 
 type CacheEntry = { data: WidgetPayload; storedAt: number; expiresAt: number };
 
+const MAX_ENTRIES = 500;
 const cache = new Map<string, CacheEntry>();
 const inFlight = new Map<string, Promise<WidgetPayload>>();
 
@@ -24,6 +25,8 @@ export async function getCachedWidget(
   const request = loader()
     .then((data) => {
       const storedAt = Date.now();
+      // 위치별 키가 무한히 늘지 않도록 가장 오래된 항목부터 버린다.
+      if (!cache.has(key) && cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value as string);
       cache.set(key, { data, storedAt, expiresAt: storedAt + ttlMs });
       return withCacheAge(data, storedAt);
     })

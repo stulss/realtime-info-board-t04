@@ -2,7 +2,8 @@ import type { WidgetPayload } from "@/types/widget";
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
 import { kpGrade, uvGrade } from "@/lib/air-grade";
 import { toKstDate } from "@/lib/history/daily-log";
-import { toKstIso } from "./open-meteo";
+import { DEFAULT_PLACE, placeKey, type Place } from "@/lib/location";
+import { offsetOf, toKstIso } from "./open-meteo";
 
 /* ---------- Open-Meteo 일간 예보 ---------- */
 
@@ -19,15 +20,15 @@ type Daily = {
 export const forecastSource: WidgetPayload["source"] = {
   provider: "Open-Meteo 일간 예보",
   docsUrl: "https://open-meteo.com/en/docs",
-  endpointTemplate: "GET /v1/forecast?latitude=37.5665&longitude=126.978&daily=sunrise,sunset,uv_index_max,...",
+  endpointTemplate: "GET /v1/forecast?latitude={lat}&longitude={lon}&daily=sunrise,sunset,uv_index_max,...&timezone=auto",
   attribution: "Weather data by Open-Meteo.com (CC BY 4.0, 비상업적 이용)",
 };
 
-export async function fetchSeoulForecast(): Promise<WidgetPayload> {
-  const body = await fetchJson<{ daily: Daily }>(
-    "https://api.open-meteo.com/v1/forecast?latitude=37.5665&longitude=126.978"
+export async function fetchForecast(place: Place = DEFAULT_PLACE): Promise<WidgetPayload> {
+  const body = await fetchJson<{ utc_offset_seconds?: number; daily: Daily }>(
+    `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}`
     + "&daily=sunrise,sunset,uv_index_max,precipitation_probability_max,temperature_2m_max,temperature_2m_min"
-    + "&timezone=Asia%2FSeoul&forecast_days=3",
+    + "&timezone=auto&forecast_days=3",
   );
   const d = body?.daily;
   const ok = d && [d.time, d.sunrise, d.sunset, d.uv_index_max, d.temperature_2m_max, d.temperature_2m_min]
@@ -41,9 +42,9 @@ export async function fetchSeoulForecast(): Promise<WidgetPayload> {
   return {
     value: {
       headline: `${Math.round(tmax)}° / ${Math.round(tmin)}°`,
-      subline: `서울 · ${d.time[0]} 최고 / 최저`,
+      subline: `${place.name} · ${d.time[0]} 최고 / 최저`,
       trend: "flat",
-      metric: { key: "forecast-seoul-tmax", label: "서울 오늘 최고기온(예보)", value: tmax, unit: "°C" },
+      metric: { key: `forecast-tmax@${placeKey(place)}`, label: `${place.name} 오늘 최고기온(예보)`, value: tmax, unit: "°C" },
       facts: { tmax, tmin, uvMax: d.uv_index_max[0], precipProbability: typeof rain === "number" ? rain : 0 },
       details: [
         { label: "일출 / 일몰", value: `${d.sunrise[0].slice(11, 16)} / ${d.sunset[0].slice(11, 16)}` },
@@ -54,7 +55,7 @@ export async function fetchSeoulForecast(): Promise<WidgetPayload> {
     },
     status: "ok",
     source: forecastSource,
-    sourceTimestamp: toKstIso(`${d.time[0]}T00:00`),
+    sourceTimestamp: toKstIso(`${d.time[0]}T00:00`, offsetOf(body, place)),
     fetchedAt: new Date().toISOString(),
     nextRefreshAt: new Date(Date.now() + 60 * 60_000).toISOString(),
     cacheAgeMs: 0,

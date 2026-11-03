@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyDailyCloses,
   dailyLogToCsv,
+  formatDelta,
   groupByDate,
   listMetrics,
   parseDailyLog,
@@ -62,6 +64,42 @@ describe("날짜별 기록", () => {
     expect(seriesFor(entries, "weather-seoul-temp", 2).map((e) => e.date)).toEqual(["2026-11-02", "2026-11-03"]);
     expect(seriesFor(entries, "none")).toEqual([]);
     expect(listMetrics(entries).map((m) => m.key).sort()).toEqual(["other", "weather-seoul-temp"]);
+  });
+
+  it("확정 일별 값(일봉 종가)은 접속하지 않은 날도 하루 한 줄로 자동 기록된다", () => {
+    const close = (date: string, value: number) => ({
+      metricKey: "upbit-btc-krw-close", label: "Upbit BTC/KRW 일봉 종가", unit: "KRW", date, value,
+      sourceTimestamp: `${date}T09:00:00+09:00`, fetchedAt: "2026-11-03T01:30:00.000Z",
+    });
+    const filled = applyDailyCloses([], [close("2026-11-02", 158), close("2026-11-01", 150)], NOW);
+    expect(filled.map((entry) => [entry.date, entry.latest, entry.closed])).toEqual([["2026-11-02", 158, true], ["2026-11-01", 150, true]]);
+    expect(filled[0]).toMatchObject({ min: 158, max: 158, samples: 1 });
+  });
+
+  it("같은 값으로 다시 채우면 저장하지 않고(참조 유지), 다른 값이면 원자료로 바로잡는다", () => {
+    const close = (value: number) => ({
+      metricKey: "k", label: "종가", unit: "KRW", date: "2026-11-02", value,
+      sourceTimestamp: "2026-11-02T09:00:00+09:00", fetchedAt: "2026-11-03T01:30:00.000Z",
+    });
+    const once = applyDailyCloses([], [close(100)], NOW);
+    expect(applyDailyCloses(once, [close(100)], NOW)).toBe(once);
+    const fixed = applyDailyCloses(once, [close(105)], NOW);
+    expect(fixed).toHaveLength(1);
+    expect(fixed[0].latest).toBe(105);
+  });
+
+  it("일별 값 채우기는 잘못된 날짜·숫자를 무시하고 라이브 기록과 같은 날짜에 공존한다", () => {
+    const live = recordMetric([], { key: "live", label: "라이브", unit: "KRW", value: 1 }, "2026-11-02T01:00:00.000Z", NOW);
+    const bad = { metricKey: "k", label: "종가", unit: "KRW", sourceTimestamp: "", fetchedAt: "" };
+    const result = applyDailyCloses(live, [{ ...bad, date: "11/02", value: 5 }, { ...bad, date: "2026-11-02", value: Number.NaN }, { ...bad, date: "2026-11-02", value: 7 }], NOW);
+    expect(result.map((entry) => entry.metricKey).sort()).toEqual(["k", "live"]);
+  });
+
+  it("formatDelta는 부호·퍼센트·절대값 대체를 처리한다", () => {
+    expect(formatDelta(2, 1.26)).toBe("+1.3%");
+    expect(formatDelta(-5, -12.4)).toBe("−12%");
+    expect(formatDelta(3, null)).toBe("+3");
+    expect(formatDelta(0, 0)).toBe("0");
   });
 
   it("ratio는 0~1로 제한하고 범위가 0이면 0.5", () => {

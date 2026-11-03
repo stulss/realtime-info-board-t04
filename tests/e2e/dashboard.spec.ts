@@ -10,8 +10,8 @@ const dailyHistoryFixture = {
   timezone: "Asia/Seoul",
   source: {
     provider: "Upbit Open API",
-    url: "https://api.upbit.com/v1/candles/days?market=KRW-BTC&count=3",
-    endpointTemplate: "GET /v1/candles/days?market=KRW-BTC&count=3",
+    url: "https://api.upbit.com/v1/candles/days?market=KRW-BTC&count=91",
+    endpointTemplate: "GET /v1/candles/days?market=KRW-BTC&count=91",
   },
   fetchedAt: "2026-08-27T01:30:00.000Z",
   records: [
@@ -122,8 +122,11 @@ test("실시간 대시보드가 자체 API만 호출하고 15개 위젯을 표�
   await mockDailyHistory(page);
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/");
-  await expect(page.locator(".widget-card")).toHaveCount(15);
+  await expect(page.locator(".tile")).toHaveCount(15);
   await expect(page.getByRole("button", { name: "전체 새로고침" })).toBeVisible();
+  // 상세(조작 UI)는 점진적 공개: 처음엔 접혀 있고 펼치면 통화 선택이 나타난다.
+  await expect(page.getByLabel("통화 선택")).toHaveCount(0);
+  await page.locator(".tile", { hasText: "원·달러 고시환율" }).getByRole("button", { name: /상세/ }).click();
   await expect(page.getByLabel("통화 선택")).toBeVisible();
   await expect(page.getByRole("textbox", { name: "아이템 검색" })).toHaveCount(0);
   await page.waitForTimeout(2_500);
@@ -139,59 +142,126 @@ test("실시간 대시보드가 자체 API만 호출하고 15개 위젯을 표�
   await page.screenshot({ path: `${SCREENSHOT_DIR}/02_실시간_대시보드.png`, fullPage: true });
 });
 
-test("서로 다른 실제 날짜 2건을 날짜별 한 건으로 저장하고 차이·방향·단위를 표시한다", async ({ page }) => {
+test("Upbit 확정 일봉 종가가 날짜별 한 줄로 자동 기록되고 어제 대비·단위를 표시한다", async ({ page }) => {
   const response = await page.request.get("/api/widgets/upbit-daily-history");
   expect(response.ok()).toBeTruthy();
   const actual = await response.json() as typeof dailyHistoryFixture;
   expect(actual.timezone).toBe("Asia/Seoul");
-  expect(actual.records).toHaveLength(2);
-  expect(new Set(actual.records.map((record) => record.date)).size).toBe(2);
+  // 2건으로 제한하지 않고 보관 기간(90일) 안의 완료 일봉을 모두 돌려준다
+  expect(actual.records.length).toBeGreaterThan(2);
+  expect(actual.records.length).toBeLessThanOrEqual(90);
+  expect(new Set(actual.records.map((record) => record.date)).size).toBe(actual.records.length);
 
+  await mockDailyHistory(page);
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/");
-  const panel = page.locator(".daily-history");
-  await expect(panel.getByText("기준 시간대: Asia/Seoul")).toBeVisible();
-  await expect(panel.locator("tbody tr")).toHaveCount(2);
-  await expect(panel.getByText("이전 대비 변화")).toBeVisible();
-  await expect(panel.getByText("단위: KRW")).toBeVisible();
+  const log = page.locator(".daily-log");
+  await expect(log.getByText("기준 시간대 Asia/Seoul")).toBeVisible();
+  await expect(log.getByText("하루에 한 줄, 자동으로.")).toBeVisible();
+  await expect(page.locator(".daily-history")).toHaveCount(0); // 별도 "하루 한 번 기록" 섹션은 없다
 
-  await panel.getByRole("button", { name: "일별 기록 동기화" }).click();
-  await expect(panel.locator("tbody tr")).toHaveCount(2);
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-records-v1") ?? "[]"));
-  expect(stored).toHaveLength(2);
-  expect(new Set(stored.map((record: { id: string }) => record.id)).size).toBe(2);
-  await panel.screenshot({ path: `${SCREENSHOT_DIR}/05_날짜별기록_중복방지_어제비교.png` });
+  await log.getByRole("tab", { name: /08-27/ }).click();
+  const row = log.locator(".range-list li", { hasText: "Upbit BTC/KRW 일봉 종가" });
+  await expect(row).toContainText("확정 일봉 종가(자동 채움)");
+  await expect(row).toContainText("160,000,000 KRW");
+  await expect(row).toContainText("08-26 대비 +1.3%"); // 158,000,000 → 160,000,000
+  await expect(row.locator(".range-list__delta")).toHaveAttribute("data-dir", "up");
+
+  await page.reload(); // 새로고침해도 같은 날짜는 한 건
+  await expect(log.getByRole("tab", { name: /08-26/ })).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-log-v1") ?? "[]"));
+  const closes = stored.filter((entry: { metricKey: string }) => entry.metricKey === "upbit-btc-krw-close");
+  expect(closes).toHaveLength(2);
+  expect(new Set(closes.map((entry: { id: string }) => entry.id)).size).toBe(2);
+  await log.screenshot({ path: `${SCREENSHOT_DIR}/05_하루한줄_자동기록_어제비교.png` });
 });
 
-test("원자료와 localStorage 저장값이 다르면 비교를 중단한다", async ({ page }) => {
+test("저장값이 원자료와 달라도 확정 일봉은 원자료 값으로 자동 보정된다", async ({ page }) => {
   await mockDailyHistory(page);
-  await page.addInitScript((record) => {
-    localStorage.setItem("pulseboard-daily-records-v1", JSON.stringify([record]));
-  }, { ...dailyHistoryFixture.records[0], value: 1, storedAt: "2026-08-27T01:31:00.000Z" });
+  await page.addInitScript(() => {
+    localStorage.setItem("pulseboard-daily-log-v1", JSON.stringify([{
+      id: "upbit-btc-krw-close:2026-08-27", metricKey: "upbit-btc-krw-close", label: "Upbit BTC/KRW 일봉 종가", unit: "KRW",
+      date: "2026-08-27", first: 1, latest: 1, min: 1, max: 1, samples: 1,
+      firstAt: "2026-08-27T00:00:00.000Z", updatedAt: "2026-08-27T01:31:00.000Z", lastFetchedAt: "2026-08-27T01:31:00.000Z", closed: true,
+    }]));
+  });
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  const panel = page.locator(".daily-history");
-  await expect(panel.getByRole("alert")).toContainText("원자료와 저장값이 달라 비교 계산을 중단했습니다.");
-  await expect(panel.getByText("원자료와 저장값이 일치해야 비교값을 표시합니다.")).toBeVisible();
-  const firstRow = panel.locator("tbody tr").first();
-  await expect(firstRow).toContainText("₩160,000,000");
-  await expect(firstRow).toContainText("₩1");
-  await panel.screenshot({ path: `${SCREENSHOT_DIR}/07_원자료_저장값_불일치_비교중단.png` });
+  const log = page.locator(".daily-log");
+  await log.getByRole("tab", { name: /08-27/ }).click();
+  await expect(log.locator(".range-list li", { hasText: "일봉 종가" })).toContainText("160,000,000 KRW");
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-log-v1") ?? "[]"));
+  expect(stored.find((entry: { id: string }) => entry.id === "upbit-btc-krw-close:2026-08-27").latest).toBe(160_000_000);
+  await log.screenshot({ path: `${SCREENSHOT_DIR}/07_저장값_원자료로_자동보정.png` });
 });
 
 test("출처 주소를 한 번 눌러 Upbit 원자료를 연다", async ({ page, context }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/");
-  const panel = page.locator(".daily-history");
-  await expect(panel.getByRole("link", { name: "Upbit Open API 원자료" })).toBeVisible();
+  const link = page.locator(".daily-log").getByRole("link", { name: /Upbit 일봉 원자료/ });
+  await expect(link).toBeVisible();
 
   const [sourcePage] = await Promise.all([
     context.waitForEvent("page"),
-    panel.getByRole("link", { name: "Upbit Open API 원자료" }).click(),
+    link.click(),
   ]);
   await sourcePage.waitForLoadState("domcontentloaded");
   expect(sourcePage.url()).toContain("api.upbit.com/v1/candles/days");
   await sourcePage.screenshot({ path: `${SCREENSHOT_DIR}/06_출처링크_한번클릭_원자료.png`, fullPage: true });
+});
+
+test.describe("위치 기반 날씨", () => {
+  test.describe("기기 위치 허용(부산)", () => {
+    test.use({ geolocation: { latitude: 35.1796, longitude: 129.0756 }, permissions: ["geolocation"] });
+
+    test("접속한 기기의 위치로 날씨 위젯과 위치 칩을 바꾼다", async ({ page }) => {
+      const widgetRequests: string[] = [];
+      page.on("request", (request) => {
+        if (/\/api\/widgets\/(weather|weather-forecast|air-quality|sensor-community|kma-weather|airkorea)\?/.test(request.url())) {
+          widgetRequests.push(request.url());
+        }
+      });
+      await mockDailyHistory(page);
+      await page.route("**/api/place?**", (route) => route.fulfill({ json: { name: "부산 연산5동", sido: "부산" } }));
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.goto("/");
+
+      const chip = page.getByRole("group", { name: "날씨 기준 위치" });
+      await expect(chip).toContainText("부산 연산5동");
+      await expect(chip).toContainText("내 위치 기준");
+      await expect(page.locator(".tile", { hasText: "부산 연산5동 날씨" })).toBeVisible();
+      await expect(page.locator(".tile", { hasText: "에어코리아 부산" })).toBeVisible();
+      await expect(page.locator(".tile", { hasText: "서울 날씨" })).toHaveCount(0);
+
+      await expect.poll(() => widgetRequests.some((url) => url.includes("/api/widgets/weather?") && url.includes("lat=35.18") && url.includes("lon=129.08"))).toBe(true);
+      // 좌표는 소수 둘째 자리(약 1km)로 줄여서 전달한다
+      expect(widgetRequests.every((url) => !/lat=35\.17\d{2}/.test(url))).toBe(true);
+      expect(widgetRequests.some((url) => url.includes("/api/widgets/airkorea?") && url.includes("sido=%EB%B6%80%EC%82%B0"))).toBe(true);
+      await page.screenshot({ path: `${SCREENSHOT_DIR}/13_위치기반_부산.png` });
+
+      // 선택은 기억된다: 서울로 바꾸면 새로고침해도 서울
+      await chip.getByRole("button", { name: "서울로 보기" }).click();
+      await expect(chip).toContainText("기본 위치(서울)");
+      await expect(page.locator(".tile", { hasText: "서울 날씨" })).toBeVisible();
+      await page.reload();
+      await expect(page.getByRole("group", { name: "날씨 기준 위치" })).toContainText("기본 위치(서울)");
+    });
+  });
+
+  test("위치를 쓸 수 없으면 서울 기준으로 표시하고 이유를 알려 준다", async ({ page }) => {
+    const widgetRequests: string[] = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/api/widgets/weather")) widgetRequests.push(request.url());
+    });
+    await mockDailyHistory(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+    const chip = page.getByRole("group", { name: "날씨 기준 위치" });
+    await expect(chip).toContainText("서울");
+    await expect(chip).toContainText(/서울 기준|위치 확인|기본 위치/);
+    await expect(page.locator(".tile", { hasText: "서울 날씨" })).toBeVisible();
+    expect(widgetRequests.every((url) => !url.includes("lat="))).toBe(true);
+  });
 });
 
 test("공개 API 계약과 키 비노출 응답을 검증한다", async ({ request }) => {
@@ -228,8 +298,7 @@ test("모바일 그리드와 수동 새로고침 쿨다운을 제공한다", asy
   const firstRefresh = page.getByRole("button", { name: "비트코인 새로고침" });
   await expect(firstRefresh).toBeVisible();
   await firstRefresh.click();
-  await expect(page.getByText(/수동 갱신 \d+초 후/).first()).toBeVisible();
-  await expect(firstRefresh).toBeDisabled();
+  await expect(firstRefresh).toBeDisabled(); // 수동 갱신 10초 쿨다운
 
   await page.screenshot({ path: `${SCREENSHOT_DIR}/03_모바일_새로고침_검증.png`, fullPage: true });
 });
@@ -264,10 +333,12 @@ test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후�
   await page.goto("/");
   const log = page.locator(".daily-log");
   await expect(log.getByRole("heading", { name: /2026-11-03/ })).toBeVisible();
-  await expect(log.getByRole("rowheader", { name: "서울 기온" })).toBeVisible();
   await expect(log.getByRole("tab", { name: /11-03/ })).toHaveAttribute("aria-selected", "true");
+  await expect(log.locator(".range-list")).toContainText("서울 기온");
+  await log.locator("summary").click(); // 날짜×지표 표는 접혀 있다가 펼침
+  await expect(log.getByRole("rowheader", { name: "서울 기온" })).toBeVisible();
 
-  const refreshWeather = page.locator(".widget-card", { hasText: "서울 날씨 (Open-Meteo)" }).locator(".refresh-block button").first();
+  const refreshWeather = page.getByRole("button", { name: "서울 날씨 새로고침", exact: true });
   await refreshWeather.click(); // 같은 fetchedAt → 표본 1 유지
   await expect.poll(() => call).toBeGreaterThanOrEqual(2);
   let stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-log-v1") ?? "[]"));
@@ -283,11 +354,13 @@ test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후�
   expect(stored.filter((entry: { metricKey: string }) => entry.metricKey === "weather-seoul-temp")).toHaveLength(1);
 
   await page.reload();
-  await expect(page.locator(".daily-log").getByRole("rowheader", { name: "서울 기온" })).toBeVisible();
-  // 카드 스트립: 스파크라인 + 오늘 범위(10~14°C, 2회)
-  const card = page.locator(".widget-card", { hasText: "서울 날씨 (Open-Meteo)" });
-  await expect(card.getByLabel("서울 날씨 (Open-Meteo) 날짜별 기록")).toContainText("10~14 °C · 2회 기록");
-  await expect(card.locator(".sparkline")).toBeVisible();
+  await expect(page.locator(".daily-log").locator(".range-list")).toContainText("서울 기온");
+  // 타일: 스파크라인은 바로 보이고, 오늘 범위(10~14°C, 2회)는 "상세"를 펼치면 보인다
+  const card = page.locator(".tile", { hasText: "서울 날씨" }).first();
+  await expect(card.locator(".sparkline")).toHaveCount(0); // 하루치뿐이면 선을 그리지 않고 상세 범위로 보여 준다
+  await expect(card.getByText(/오늘\(11-03\) 범위/)).toHaveCount(0);
+  await card.getByRole("button", { name: /상세/ }).click();
+  await expect(card).toContainText("오늘(11-03) 범위 · 2회 기록");
   // 추세 차트: 지표 선택 후 날짜 점 1개
   const log2 = page.locator(".daily-log");
   await log2.getByLabel("추세 지표").selectOption({ label: "서울 기온" });
@@ -300,8 +373,8 @@ test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후�
 test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세 차트로 날짜별 기록을 보여준다", async ({ page }) => {
   const days = ["2026-10-28", "2026-10-29", "2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03"];
   const series = [
-    { key: "weather-seoul-temp", label: "서울 기온", unit: "°C", base: [12, 14, 11, 9, 13, 16, 15] },
-    { key: "airquality-seoul-pm25", label: "서울 PM2.5(모델)", unit: "μg/m³", base: [22, 41, 58, 33, 18, 27, 44] },
+    { key: "weather-temp@37.6,127.0", label: "서울 기온", unit: "°C", base: [12, 14, 11, 9, 13, 16, 15] },
+    { key: "airquality-pm25@37.6,127.0", label: "서울 PM2.5(모델)", unit: "μg/m³", base: [22, 41, 58, 33, 18, 27, 44] },
     { key: "upbit-btc-krw", label: "Upbit BTC/KRW", unit: "KRW", base: [101e6, 102.5e6, 100.1e6, 103e6, 104.2e6, 103.4e6, 103.0e6] },
   ];
   const entries = series.flatMap((item) => days.map((date, index) => {
@@ -315,7 +388,8 @@ test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세
   await page.addInitScript((value) => {
     localStorage.setItem("pulseboard-daily-log-v1", JSON.stringify(value));
   }, entries);
-  await mockDailyHistory(page);
+  // 일봉 자동 채움은 막아 시드한 7일만 보이게 한다
+  await page.route("**/api/widgets/upbit-daily-history", (route) => route.fulfill({ status: 503, json: { error: "disabled" } }));
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/");
 
@@ -333,8 +407,21 @@ test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세
   await expect(log.getByRole("img", { name: /서울 PM2\.5\(모델\) 날짜별 추세 차트, 7일/ })).toBeVisible();
   await expect(log.locator(".trend-chart__point")).toHaveCount(7);
 
+  await log.locator("summary").click();
+  await expect(log.locator(".log-matrix")).toBeVisible();
   await log.scrollIntoViewIfNeeded();
   await log.screenshot({ path: `${SCREENSHOT_DIR}/09_날짜별기록_시각화_7일.png` });
   await page.waitForTimeout(1_500); // 등장·그리기 모션이 끝난 뒤 촬영
   await page.screenshot({ path: `${SCREENSHOT_DIR}/10_대시보드_전체_고도화.png`, fullPage: true });
+
+  // 첫 화면(스크롤 전)과 점진적 공개(상세 펼침)
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.screenshot({ path: `${SCREENSHOT_DIR}/11_컴팩트_첫화면.png` });
+  const weatherTile = page.locator(".tile", { hasText: "서울 날씨" }).first();
+  await expect(weatherTile.locator(".tile__delta")).toBeVisible(); // 직전 기록 대비
+  await weatherTile.getByRole("button", { name: /상세/ }).click();
+  await weatherTile.screenshot({ path: `${SCREENSHOT_DIR}/12_타일_상세_펼침.png` });
+  await page.getByRole("button", { name: /^세계·생활/ }).click();
+  await expect(page.locator(".tile-slot:not([hidden])")).toHaveCount(5);
 });
