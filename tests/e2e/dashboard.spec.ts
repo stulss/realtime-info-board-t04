@@ -614,7 +614,7 @@ test.describe("상용 수준 마감", () => {
     expect(page.headers()["x-powered-by"]).toBeUndefined();
 
     const manifest = await (await request.get("/manifest.webmanifest")).json();
-    expect(manifest).toMatchObject({ short_name: "Pulseboard", display: "standalone", lang: "ko" });
+    expect(manifest).toMatchObject({ short_name: "Daylog", display: "standalone", lang: "ko" });
     expect((await request.get("/icon.svg")).ok()).toBeTruthy();
     expect(await (await request.get("/robots.txt")).text()).toContain("Disallow: /api/");
   });
@@ -622,7 +622,7 @@ test.describe("상용 수준 마감", () => {
   test("메타데이터와 건너뛰기 링크, 키보드 포커스 표시", async ({ page }) => {
     await mockDailyHistory(page);
     await page.goto("/");
-    await expect(page).toHaveTitle(/Pulseboard/);
+    await expect(page).toHaveTitle(/Daylog/);
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /실시간 정보판/);
     await expect(page.locator('meta[property="og:title"]')).toHaveCount(1);
     await expect(page.locator('meta[name="theme-color"]').first()).toHaveCount(1);

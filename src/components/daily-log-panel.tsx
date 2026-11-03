@@ -71,8 +71,8 @@ export function DailyLogPanel({ selectedDate: controlledDate, onSelectDate }: Da
           서버에는 개인 기록을 보내지 않습니다.
         </p>
         <div>
-          <button type="button" disabled={entries.length === 0} onClick={() => download("pulseboard-daily-log.csv", `﻿${dailyLogToCsv(entries)}`, "text/csv;charset=utf-8")}>CSV 내보내기</button>
-          <button type="button" disabled={entries.length === 0} onClick={() => download("pulseboard-daily-log.json", JSON.stringify(entries, null, 2), "application/json")}>JSON 내보내기</button>
+          <button type="button" disabled={entries.length === 0} onClick={() => download("daylog-daily-log.csv", `﻿${dailyLogToCsv(entries)}`, "text/csv;charset=utf-8")}>CSV 내보내기</button>
+          <button type="button" disabled={entries.length === 0} onClick={() => download("daylog-daily-log.json", JSON.stringify(entries, null, 2), "application/json")}>JSON 내보내기</button>
           <button
             type="button"
             disabled={entries.length === 0}

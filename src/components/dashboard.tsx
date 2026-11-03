@@ -184,7 +184,7 @@ function DashboardView() {
   return (
     <main id="main" className="dashboard-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">P</span><span>Pulseboard</span></div>
+        <div className="brand"><span className="brand-mark">D</span><span>Daylog</span></div>
         <div className="topbar-actions">
           <Link className="text-link hide-mobile" href="/verification">상태 검증</Link>
           <button className="icon-button" type="button" onClick={toggleTheme} aria-label="테마 전환" suppressHydrationWarning>{isDark ? "☀" : "◐"}</button>
@@ -258,7 +258,7 @@ function DashboardView() {
       <DailyCloseSync />
 
       <footer className="page-footer">
-        <span>Pulseboard</span>
+        <span>Daylog</span>
         <p>데이터는 각 공급자 API의 제공 범위와 갱신 주기를 따릅니다. <Link href="/about">데이터 출처·개인정보</Link></p>
       </footer>
     </main>

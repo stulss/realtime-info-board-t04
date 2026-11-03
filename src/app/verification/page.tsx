@@ -15,7 +15,7 @@ export default function VerificationPage() {
   return (
     <main id="main" className="dashboard-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">P</span><span>Pulseboard</span></div>
+        <div className="brand"><span className="brand-mark">D</span><span>Daylog</span></div>
         <Link className="text-link" href="/">실시간 화면으로 돌아가기 →</Link>
       </header>
       <section className="hero hero--compact">

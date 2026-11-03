@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "데이터 출처·개인정보",
-  description: "Pulseboard가 쓰는 공개 데이터의 출처와 이용 조건, 위치·기록 등 개인정보 처리 방식을 안내합니다.",
+  description: "Daylog가 쓰는 공개 데이터의 출처와 이용 조건, 위치·기록 등 개인정보 처리 방식을 안내합니다.",
 };
 
 type Source = { name: string; what: string; url: string; terms: string; note?: string };
@@ -27,7 +27,7 @@ export default function AboutPage() {
   return (
     <main id="main" className="about-page">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">P</span><span>Pulseboard</span></div>
+        <div className="brand"><span className="brand-mark">D</span><span>Daylog</span></div>
         <Link className="text-link" href="/">← 정보판</Link>
       </header>
 
@@ -77,7 +77,7 @@ export default function AboutPage() {
       </section>
 
       <footer className="page-footer">
-        <span>Pulseboard</span>
+        <span>Daylog</span>
         <p>데이터는 각 공급자 API의 제공 범위와 갱신 주기를 따릅니다.</p>
       </footer>
     </main>
