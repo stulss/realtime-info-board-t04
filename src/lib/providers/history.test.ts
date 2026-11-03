@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { addDays, daysBetweenDates, resolveRange, upbitDailyCount } from "@/lib/history/range";
 import { applyDailyCloses } from "@/lib/history/daily-log";
-import {
-  airQualityHistory, buildHistory, earthquakeHistory, ethHistory, getHistory, kpHistory, usdKrwHistory, weatherHistory,
-} from "./history";
+import { airQualityHistory, buildHistory, getHistory, weatherHistory } from "./history";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -53,61 +51,35 @@ describe("과거 원자료 → 하루 한 줄", () => {
     expect(points[0]).toMatchObject({ date: "2026-08-01", value: 20, min: 10, max: 30, unit: "μg/m³" });
   });
 
-  it("지진: KST 날짜별 건수를 세고 지진이 없는 날은 0으로 채운다", async () => {
-    const csv = [
-      "time,latitude,longitude,depth,mag,place",
-      "2026-08-01T15:30:00.000Z,1,1,1,3.0,\"A, B\"", // KST 08-02 00:30
-      "2026-08-01T01:00:00.000Z,1,1,1,3.0,\"C\"", // KST 08-01
-      "2026-08-01T05:00:00.000Z,1,1,1,4.0,\"D\"", // KST 08-01
-    ].join("\n");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(csv)));
-    const points = await earthquakeHistory("2026-08-01", "2026-08-03");
-    expect(points.map((point) => [point.date, point.value])).toEqual([["2026-08-01", 2], ["2026-08-02", 1], ["2026-08-03", 0]]);
-  });
 
-  it("지진: 형식이 바뀌면 schema_changed", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>error</html>")));
-    await expect(earthquakeHistory("2026-08-01", "2026-08-03")).rejects.toMatchObject({ kind: "schema_changed" });
-  });
 
-  it("Kp: 3시간 값을 UTC 일별 평균·최소·최대로 집계한다", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
-      Kp: [1, 3, 5, 2],
-      datetime: ["2026-08-01T00:00:00Z", "2026-08-01T03:00:00Z", "2026-08-01T06:00:00Z", "2026-08-02T00:00:00Z"],
-    })));
-    const points = await kpHistory("2026-08-01", "2026-08-02");
-    expect(points[0]).toMatchObject({ date: "2026-08-01", value: 3, min: 1, max: 5 });
-    expect(points[1]).toMatchObject({ date: "2026-08-02", value: 2 });
-  });
 
-  it("ETH·환율: 시작일~어제 범위만 남기고 오늘 값은 실시간에 맡긴다", async () => {
-    const day = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ prices: [[day("2026-07-31"), 1], [day("2026-08-01"), 1860.567], [day("2026-11-02"), 2200], [day("2026-11-03"), 2243]] })));
-    const eth = await ethHistory("2026-08-01", "2026-11-02", NOW);
-    expect(eth.map((point) => [point.date, point.value])).toEqual([["2026-08-01", 1860.57], ["2026-11-02", 2200]]);
 
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([
-      { date: "2026-08-01", base: "USD", quote: "KRW", rate: 1437.12 }, { date: "2026-11-03", base: "USD", quote: "KRW", rate: 1339 },
-    ])));
-    const fx = await usdKrwHistory("2026-08-01", "2026-11-02");
-    expect(fx).toHaveLength(1);
-    expect(fx[0]).toMatchObject({ metricKey: "frankfurter-usd-krw", value: 1437.12, unit: "KRW" });
+  const weatherBody = { daily: { time: ["2026-08-01", "2026-08-02"], temperature_2m_mean: [20, 21], temperature_2m_max: [25, 26], temperature_2m_min: [15, 16] } };
+  const airBody = {
+    hourly: {
+      time: Array.from({ length: 24 }, (_, hour) => `2026-08-01T${String(hour).padStart(2, "0")}:00`),
+      pm2_5: Array.from({ length: 24 }, () => 20),
+    },
+  };
+  const byUrl = (handlers: { weather?: () => Response; air?: () => Response }) => vi.fn().mockImplementation((url: string) => {
+    if (String(url).includes("historical-forecast") && handlers.weather) return Promise.resolve(handlers.weather());
+    if (String(url).includes("air-quality") && handlers.air) return Promise.resolve(handlers.air());
+    return Promise.resolve(new Response("boom", { status: 500 }));
   });
 
   it("일부 출처가 실패해도 나머지로 응답하고 실패 이유를 sources에 남긴다", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => {
-      if (url.includes("frankfurter")) return Promise.resolve(Response.json([{ date: "2026-08-01", rate: 1437.12 }]));
-      return Promise.resolve(new Response("boom", { status: 500 }));
-    }));
+    vi.stubGlobal("fetch", byUrl({ weather: () => Response.json(weatherBody) })); // 대기질은 500
     const result = await buildHistory(BUSAN, null, NOW);
-    expect(result.points).toHaveLength(1);
-    expect(result.sources.filter((source) => source.ok).map((source) => source.name)).toEqual(["Frankfurter USD/KRW"]);
-    expect(result.sources.filter((source) => !source.ok)).toHaveLength(5);
-    expect(result.sources.find((source) => !source.ok)?.error).toBeTruthy();
+    expect(result.points.filter((point) => point.metricKey === "weather-temp@35.2,129.1")).toHaveLength(2);
+    expect(result.sources.filter((source) => source.ok).map((source) => source.name)).toEqual(["Open-Meteo 기온"]);
+    const failed = result.sources.filter((source) => !source.ok);
+    expect(failed.map((source) => source.name)).toEqual(["Open-Meteo 대기질"]);
+    expect(failed[0].error).toBeTruthy();
   });
 
   it("전부 실패한 응답은 캐시하지 않고, 성공한 응답은 같은 조건에서 재사용한다", async () => {
-    const failing = vi.fn().mockResolvedValue(new Response("boom", { status: 500 }));
+    const failing = byUrl({});
     vi.stubGlobal("fetch", failing);
     const place = { lat: 1.1, lon: 1.1, name: "캐시실패" };
     await getHistory(place, null, NOW);
@@ -115,7 +87,7 @@ describe("과거 원자료 → 하루 한 줄", () => {
     await getHistory(place, null, NOW);
     expect(failing.mock.calls.length).toBeGreaterThan(callsAfterFail); // 다시 시도했다
 
-    const ok = vi.fn().mockImplementation(() => Promise.resolve(Response.json([{ date: "2026-08-01", rate: 1 }])));
+    const ok = byUrl({ weather: () => Response.json(weatherBody), air: () => Response.json(airBody) });
     vi.stubGlobal("fetch", ok);
     const placeOk = { lat: 2.2, lon: 2.2, name: "캐시성공" };
     await getHistory(placeOk, null, NOW);

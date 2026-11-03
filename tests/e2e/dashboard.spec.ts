@@ -111,7 +111,7 @@ test("장애 5종을 서로 다른 문구로 표시하고 오래된 값·빈 상
   }
 });
 
-test("실시간 대시보드가 자체 API만 호출하고 15개 위젯을 표시한다", async ({ page }) => {
+test("실시간 대시보드가 자체 API만 호출하고 8개 위젯을 표시한다", async ({ page }) => {
   const externalBrowserRequests: string[] = [];
   const consoleErrors: string[] = [];
   page.on("request", (request) => {
@@ -127,7 +127,11 @@ test("실시간 대시보드가 자체 API만 호출하고 15개 위젯을 표�
   await mockDailyHistory(page);
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/");
-  await expect(page.locator(".tile")).toHaveCount(15);
+  await expect(page.locator(".tile")).toHaveCount(8);
+  // 한국 일상에서 쓰지 않는 위젯(해외 지진·ISS·우주날씨·ETH·GitHub 상태 등)은 없다
+  for (const removed of ["ISS", "이더리움", "GitHub", "우주날씨", "전 세계 지진", "시민 센서"]) {
+    await expect(page.locator(".tile", { hasText: removed })).toHaveCount(0);
+  }
   await expect(page.getByRole("button", { name: "전체 새로고침" })).toBeVisible();
   // 상세(조작 UI)는 점진적 공개: 처음엔 접혀 있고 펼치면 통화 선택이 나타난다.
   await expect(page.getByLabel("통화 선택")).toHaveCount(0);
@@ -162,7 +166,7 @@ test("Upbit 확정 일봉 종가가 날짜별 한 줄로 자동 기록되고 어
   await page.goto("/");
   const log = page.locator(".daily-log");
   await expect(log.getByText("기준 시간대 Asia/Seoul")).toBeVisible();
-  await expect(log.getByText("하루에 한 줄, 자동으로.")).toBeVisible();
+  await expect(log.getByText("하루 한 줄씩 자동 저장")).toBeVisible();
   await expect(page.locator(".daily-history")).toHaveCount(0); // 별도 "하루 한 번 기록" 섹션은 없다
 
   await log.getByRole("tab", { name: /08-27/ }).click();
@@ -297,7 +301,7 @@ test("8월 1일부터의 과거 기록이 미리 채워지고, 오늘 기록은 
 
   // 가장 오래된 기록은 8월 1일, 최신은 오늘
   await expect(log.getByRole("tab", { name: /08-01/ })).toBeVisible();
-  const tabs = log.getByRole("tab");
+  const tabs = log.getByRole("tablist", { name: "기록된 날짜" }).getByRole("tab");
   const today = await page.evaluate(() => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()));
   await expect(tabs.first()).toContainText(today.slice(5)); // 오늘이 가장 앞
   await expect(tabs.last()).toContainText("08-01");
@@ -327,126 +331,14 @@ test("8월 1일부터의 과거 기록이 미리 채워지고, 오늘 기록은 
   await page.locator(".daily-log").screenshot({ path: `${SCREENSHOT_DIR}/14_8월1일부터_미리채움.png` });
 });
 
-test.describe("3D 시각화", () => {
-  const seed = (page: import("@playwright/test").Page) => {
-    const days = Array.from({ length: 30 }, (_, index) => `2026-10-${String(index + 1).padStart(2, "0")}`);
-    const series = [
-      { key: "weather-temp@37.6,127.0", label: "서울 기온", unit: "°C", f: (i: number) => 14 + Math.sin(i / 4) * 5 },
-      { key: "airquality-pm25@37.6,127.0", label: "서울 PM2.5(모델)", unit: "μg/m³", f: (i: number) => 25 + ((i * 7) % 30) },
-      { key: "upbit-btc-krw-close", label: "Upbit BTC/KRW 일봉 종가", unit: "KRW", f: (i: number) => 100e6 + i * 2e5 },
-    ];
-    const entries = series.flatMap((item) => days.map((date, index) => {
-      const latest = item.f(index);
-      return {
-        id: `${item.key}:${date}`, metricKey: item.key, label: item.label, unit: item.unit, date,
-        first: latest, latest, min: latest * 0.95, max: latest * 1.05, samples: 1,
-        firstAt: `${date}T00:00:00.000Z`, updatedAt: `${date}T09:00:00.000Z`, lastFetchedAt: `${date}T09:00:00.000Z`, closed: true,
-      };
-    }));
-    return page.addInitScript((value) => localStorage.setItem("pulseboard-daily-log-v1", JSON.stringify(value)), entries);
-  };
-
-  test("날짜 × 지표 3D 지형을 그리고 호버 툴팁과 클릭 이동을 지원한다", async ({ page }) => {
-    await seed(page);
-    await mockDailyHistory(page);
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto("/");
-
-    const section = page.locator(".viz-section");
-    await section.scrollIntoViewIfNeeded();
-    const stage = section.locator(".viz3d__stage");
-    await expect(stage.locator("canvas")).toBeVisible({ timeout: 20_000 });
-    await expect(stage).toHaveAttribute("aria-label", /3D 막대 지형/);
-    await expect(section.getByRole("list", { name: "지표 범례" }).locator("li")).toHaveCount(3);
-
-    await page.waitForTimeout(2_000); // 막대가 솟아오르는 모션이 끝날 때까지
-    const png = await stage.screenshot({ path: `${SCREENSHOT_DIR}/15_3D_지형.png` });
-    expect(png.length).toBeGreaterThan(25_000); // 빈 캔버스가 아니라 장면이 그려졌다
-
-    // 호버: 캔버스를 훑어 막대를 찾으면 툴팁이 뜬다
-    const box = (await stage.boundingBox())!;
-    let found = false;
-    await section.getByRole("button", { name: "자동 회전" }).click(); // 회전을 멈춰 좌표를 고정
-    await section.getByRole("button", { name: "정면" }).click();
-    await page.waitForTimeout(1_200);
-    for (let y = 0.15; y <= 0.95 && !found; y += 0.05) {
-      for (let x = 0.1; x <= 0.9 && !found; x += 0.03) {
-        await page.mouse.move(box.x + box.width * x, box.y + box.height * y);
-        await page.waitForTimeout(40);
-        found = await stage.locator(".viz3d__tip").isVisible();
-      }
-    }
-    expect(found).toBe(true);
-    const tipText = await stage.locator(".viz3d__tip").innerText();
-    const date = /(\d{4}-\d{2}-\d{2})/.exec(tipText)![1];
-    await page.mouse.down();
-    await page.mouse.up();
-    // 클릭하면 날짜별 기록 패널이 그 날짜로 이동한다
-    await expect(page.locator(".daily-log").getByRole("tab", { name: new RegExp(date.slice(5)) })).toHaveAttribute("aria-selected", "true");
-    await page.screenshot({ path: `${SCREENSHOT_DIR}/16_3D_지형_선택날짜_이동.png` });
-  });
-
-  test("3D 지구본에 지진·ISS·내 위치를 표시한다", async ({ page }) => {
-    await mockDailyHistory(page);
-    const base = { status: "ok", cacheAgeMs: 0, fetchedAt: new Date().toISOString() };
-    await page.route("**/api/widgets/usgs-earthquake", (route) => route.fulfill({ json: { ...base,
-      value: { headline: "최대 M6.1", points: [
-        { lat: 35.1, lon: 139.7, value: 6.1, label: "Tokyo, Japan", at: "2026-11-03T01:00:00.000Z" },
-        { lat: -33.4, lon: -70.6, value: 4.2, label: "Santiago, Chile", at: "2026-11-03T02:00:00.000Z" },
-        { lat: 61.2, lon: -149.9, value: 3.1, label: "Anchorage, Alaska", at: "2026-11-03T03:00:00.000Z" },
-      ] },
-      source: { provider: "USGS", docsUrl: "https://earthquake.usgs.gov", endpointTemplate: "GET /feed" } } }));
-    await page.route("**/api/widgets/iss", (route) => route.fulfill({ json: { ...base,
-      value: { headline: "ISS", facts: { lat: 20.5, lon: 40.2 } },
-      source: { provider: "Open Notify", docsUrl: "http://open-notify.org", endpointTemplate: "GET /iss-now.json" } } }));
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto("/");
-
-    const section = page.locator(".viz-section");
-    await section.getByRole("tab", { name: "3D 지구본" }).click();
-    const stage = section.locator(".viz3d__stage");
-    await expect(stage.locator("canvas")).toBeVisible({ timeout: 20_000 });
-    await expect(stage).toHaveAttribute("aria-label", /지진 3건\(규모 5 이상 1건\), ISS 위치 20\.5°, 40\.2°/);
-    await expect(section.getByRole("button", { name: "ISS" })).toBeEnabled();
-    await section.getByRole("button", { name: "내 위치" }).click();
-    await page.waitForTimeout(1_500);
-    const png = await stage.screenshot({ path: `${SCREENSHOT_DIR}/17_3D_지구본.png` });
-    expect(png.length).toBeGreaterThan(25_000);
-
-    // 다크 테마: 장면을 다시 만들어 색을 바꾼다
-    await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
-    await page.waitForTimeout(1_200);
-    const dark = await stage.screenshot({ path: `${SCREENSHOT_DIR}/18_3D_지구본_다크.png` });
-    expect(dark.length).toBeGreaterThan(25_000);
-    await expect(stage.locator("canvas")).toBeVisible();
-  });
-
-  test("모션 줄이기 설정이면 자동 회전을 끄고 3D 장면은 그대로 그린다", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await seed(page);
-    await mockDailyHistory(page);
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/");
-    const section = page.locator(".viz-section");
-    await expect(section.locator(".viz3d__stage canvas")).toBeVisible({ timeout: 20_000 });
-    await expect(section.getByRole("button", { name: "자동 회전" })).toHaveAttribute("aria-pressed", "false");
-  });
-
-  test("기록이 없으면 3D 대신 안내 문구를 보인다", async ({ page }) => {
-    await mockDailyHistory(page);
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.goto("/");
-    await expect(page.locator(".viz-section .viz-fallback, .viz-section .viz3d__stage canvas").first()).toBeVisible({ timeout: 20_000 });
-  });
-});
-
 test("공개 API 계약과 키 비노출 응답을 검증한다", async ({ request }) => {
-  const publicEndpoints = ["/api/widgets/upbit-ticker", "/api/widgets/status"];
-  const protectedEndpoints = [
-    "/api/widgets/lostark-notices",
-    "/api/widgets/lostark-market?itemName=%ED%8C%8C%EA%B4%B4%EA%B0%95%EC%84%9D",
-    "/api/widgets/exchange-rate?currency=USD",
-  ];
+  const publicEndpoints = ["/api/widgets/upbit-ticker", "/api/widgets/weather", "/api/widgets/holiday"];
+  const protectedEndpoints = ["/api/widgets/exchange-rate?currency=USD"];
+
+  // 제거된 API는 더 이상 노출하지 않는다
+  for (const removed of ["status", "iss", "kp-index", "usgs-earthquake", "coingecko", "frankfurter-rate", "sensor-community", "lostark-notices", "lostark-market"]) {
+    expect((await request.get(`/api/widgets/${removed}`)).status()).toBe(404);
+  }
 
   for (const endpoint of [...publicEndpoints, ...(EXPECT_LIVE_PROVIDERS ? protectedEndpoints : [])]) {
     const response = await request.get(endpoint);
@@ -511,8 +403,10 @@ test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후�
   await expect(log.getByRole("heading", { name: /2026-11-03/ })).toBeVisible();
   await expect(log.getByRole("tab", { name: /11-03/ })).toHaveAttribute("aria-selected", "true");
   await expect(log.locator(".range-list")).toContainText("서울 기온");
-  await log.locator("summary").click(); // 날짜×지표 표는 접혀 있다가 펼침
-  await expect(log.getByRole("rowheader", { name: "서울 기온" })).toBeVisible();
+  await log.getByRole("tab", { name: "달력" }).click(); // 달력 히트맵에서도 오늘 칸이 보인다
+  await log.getByRole("combobox", { name: "지표 선택" }).selectOption({ label: "서울 기온" });
+  await expect(log.locator(".cal__cell--has").first()).toBeVisible();
+  await log.getByRole("tab", { name: "추세" }).click();
 
   const refreshWeather = page.getByRole("button", { name: "서울 날씨 새로고침", exact: true });
   await refreshWeather.click(); // 같은 fetchedAt → 표본 1 유지
@@ -539,7 +433,7 @@ test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후�
   await expect(card).toContainText("오늘(11-03) 범위 · 2회 기록");
   // 추세 차트: 지표 선택 후 날짜 점 1개
   const log2 = page.locator(".daily-log");
-  await log2.getByLabel("추세 지표").selectOption({ label: "서울 기온" });
+  await log2.getByRole("combobox", { name: "지표 선택" }).selectOption({ label: "서울 기온" });
   await expect(log2.getByRole("img", { name: /서울 기온 날짜별 추세 차트, 1일/ })).toBeVisible();
   await expect(log2.locator(".range-list")).toContainText("최소 10 °C");
   await expect(page.locator(".briefing__tile")).toHaveCount(5);
@@ -571,24 +465,33 @@ test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세
   await page.goto("/");
 
   const log = page.locator(".daily-log");
-  await expect(log.getByRole("tab")).toHaveCount(7);
+  await expect(log.getByRole("tablist", { name: "기록된 날짜" }).getByRole("tab")).toHaveCount(7);
   await expect(log.getByRole("tab", { name: /11-03/ })).toHaveAttribute("aria-selected", "true");
   await log.getByRole("tab", { name: /10-30/ }).click();
   await expect(log.getByRole("heading", { name: /2026-10-30/ })).toBeVisible();
   await expect(log.locator(".range-list li")).toHaveCount(3);
-  // 실제 위젯이 오늘 날짜로 지표를 추가 기록할 수 있으므로 행은 최소 3개, 셀은 행 × 7일
-  const rowCount = await log.locator(".log-matrix tbody tr").count();
-  expect(rowCount).toBeGreaterThanOrEqual(3);
-  await expect(log.locator(".log-matrix td.heat")).toHaveCount(rowCount * 7);
-  await log.getByLabel("추세 지표").selectOption({ label: "서울 PM2.5(모델)" });
+  // 추세: 지표를 고르면 7일 점이 찍힌다
+  await log.getByRole("combobox", { name: "지표 선택" }).selectOption({ label: "서울 PM2.5(모델)" });
   await expect(log.getByRole("img", { name: /서울 PM2\.5\(모델\) 날짜별 추세 차트, 7일/ })).toBeVisible();
   await expect(log.locator(".trend-chart__point")).toHaveCount(7);
 
-  await log.locator("summary").click();
-  await expect(log.locator(".log-matrix")).toBeVisible();
+  // 달력: 기록 있는 7칸, 칸을 누르면 그날 기록으로 이동
+  await log.getByRole("tab", { name: "달력" }).click();
+  await expect(log.locator(".cal__cell--has")).toHaveCount(7);
+  await log.locator(".cal__cell--has").nth(5).click(); // 11-02
+  await expect(log.getByRole("tab", { name: /11-02/ })).toHaveAttribute("aria-selected", "true");
+  await expect(log.getByRole("heading", { name: /2026-11-02/ })).toBeVisible();
+  await log.locator(".log-views").screenshot({ path: `${SCREENSHOT_DIR}/10_달력_히트맵.png` });
+
+  // 한눈에 보기: 섹션 맨 위의 지표별 카드(현재값·어제 대비·30일 추세), 누르면 추세 탭으로
+  expect(await log.locator(".smalls__item").count()).toBeGreaterThanOrEqual(3);
+  await expect(log.locator(".smalls__item", { hasText: "서울 PM2.5(모델)" }).locator(".smalls__delta")).toBeVisible();
+  await expect(log.locator(".smalls__item", { hasText: "서울 PM2.5(모델)" }).locator(".sparkline")).toBeVisible();
   await log.scrollIntoViewIfNeeded();
   await log.screenshot({ path: `${SCREENSHOT_DIR}/09_날짜별기록_시각화_7일.png` });
   await page.waitForTimeout(1_500); // 등장·그리기 모션이 끝난 뒤 촬영
+  await log.locator(".smalls__item", { hasText: "서울 PM2.5(모델)" }).click();
+  await expect(log.getByRole("tab", { name: "추세" })).toHaveAttribute("aria-selected", "true");
   await page.screenshot({ path: `${SCREENSHOT_DIR}/10_대시보드_전체_고도화.png`, fullPage: true });
 
   // 첫 화면(스크롤 전)과 점진적 공개(상세 펼침)
@@ -599,8 +502,12 @@ test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세
   await expect(weatherTile.locator(".tile__delta")).toBeVisible(); // 직전 기록 대비
   await weatherTile.getByRole("button", { name: /상세/ }).click();
   await weatherTile.screenshot({ path: `${SCREENSHOT_DIR}/12_타일_상세_펼침.png` });
-  await page.getByRole("button", { name: /^세계·생활/ }).click();
+  await page.getByRole("button", { name: /^날씨·대기/ }).click();
   await expect(page.locator(".tile-slot:not([hidden])")).toHaveCount(5);
+  await page.getByRole("button", { name: /^생활/ }).click();
+  await expect(page.locator(".tile-slot:not([hidden])")).toHaveCount(1);
+  await page.getByRole("button", { name: /^시세·환율/ }).click();
+  await expect(page.locator(".tile-slot:not([hidden])")).toHaveCount(2);
 });
 
 test.describe("상용 수준 마감", () => {
@@ -640,7 +547,7 @@ test.describe("상용 수준 마감", () => {
     await expect(page.getByRole("heading", { name: "개인정보는 이렇게 다룹니다" })).toBeVisible();
     await expect(page.getByText("좌표는 소수 둘째 자리")).toBeVisible();
     await expect(page.getByText("비상업적 이용 한정")).toBeVisible(); // 라이선스 제약을 숨기지 않는다
-    expect(await page.locator(".about-table tbody tr").count()).toBeGreaterThanOrEqual(10);
+    expect(await page.locator(".about-table tbody tr").count()).toBe(7);
     await page.screenshot({ path: `${SCREENSHOT_DIR}/19_데이터출처_개인정보.png`, fullPage: true });
 
     const missing = await page.goto("/does-not-exist");
@@ -655,14 +562,14 @@ test.describe("상용 수준 마감", () => {
     await expect(page).toHaveURL(/\/about$/);
   });
 
-  test("모바일(390px)에서 가로 스크롤 없이 3D 영역과 타일이 맞는다", async ({ page }) => {
+  test("모바일(390px)에서 가로 스크롤 없이 타일과 기록이 맞는다", async ({ page }) => {
     await mockDailyHistory(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
     await page.waitForTimeout(800);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
-    await expect(page.locator(".viz-section")).toBeVisible();
+    await expect(page.locator(".daily-log")).toBeVisible();
     await page.screenshot({ path: `${SCREENSHOT_DIR}/20_모바일_전체.png`, fullPage: true });
   });
 });

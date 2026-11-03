@@ -15,9 +15,14 @@ import type { DailyLogEntry } from "@/lib/history/daily-log";
 import { HISTORY_START_DATE, upbitDailyCount } from "@/lib/history/range";
 import { upbitSourceUrl } from "@/lib/history/upbit-closes";
 import { useDailyLog } from "@/lib/history/use-daily-log";
+import { CalendarHeatmap } from "./calendar-heatmap";
+import { SmallMultiples } from "./small-multiples";
 import { TrendChart } from "./trend-chart";
 
-const MATRIX_DAYS = 14;
+const VIEWS = [
+  { id: "trend", title: "추세", desc: "선택한 지표의 날짜별 변화. 면적은 그날 최소~최대, 선은 그날 마지막 값입니다." },
+  { id: "calendar", title: "달력", desc: "하루를 한 칸으로 놓아 요일·주간 패턴을 봅니다. 색이 진할수록 그 지표 안에서 높은 값이고, 칸을 누르면 그날 기록으로 이동합니다." },
+] as const;
 
 function formatNumber(value: number, unit: string): string {
   const text = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 }).format(value);
@@ -47,44 +52,39 @@ export function DailyLogPanel({ selectedDate: controlledDate, onSelectDate }: Da
   const pickedDate = controlledDate ?? localDate;
   const setPickedDate = (date: string) => { setLocalDate(date); onSelectDate?.(date); };
   const [pickedMetric, setPickedMetric] = useState<string | null>(null);
+  const [view, setView] = useState<(typeof VIEWS)[number]["id"]>("trend");
 
   const selectedDate = days.some(([date]) => date === pickedDate) ? pickedDate! : days[0]?.[0];
   const selectedRows = days.find(([date]) => date === selectedDate)?.[1] ?? [];
   const metric = metrics.find((item) => item.key === pickedMetric) ?? metrics[0];
   const series = metric ? seriesFor(entries, metric.key, 400) : [];
 
-  // 히트맵: 최근 14일(오래된 날짜 → 최신 날짜)
-  const matrixDates = days.slice(0, MATRIX_DAYS).map(([date]) => date).reverse();
-  const matrixCell = (key: string, date: string) => entries.find((entry) => entry.metricKey === key && entry.date === date);
 
   return (
     <section className="daily-log" id="daily-log" aria-labelledby="daily-log-heading">
       <div className="section-heading">
-        <div><span>03</span><h2 id="daily-log-heading">날짜별 자동 기록</h2></div>
+        <div><span>02</span><h2 id="daily-log-heading">날짜별 자동 기록</h2></div>
         <p>기준 시간대 <strong>Asia/Seoul</strong> · 최대 {DAILY_LOG_RETENTION_DAYS}일 보관</p>
       </div>
 
-      <div className="log-toolbar">
-        <p>
-          <strong>하루에 한 줄, 자동으로.</strong> 위젯이 정상 조회될 때마다 그날(KST)의 값이 지표당 한 줄로 합쳐져
-          이 브라우저에 저장됩니다(최신·최소·최대·표본 수). {HISTORY_START_DATE.slice(5).replace("-", "월 ")}일부터 어제까지는 공급자의 과거 원자료로 미리 채워 두었고, 오늘부터는 실시간으로 자동 저장됩니다.
-          서버에는 개인 기록을 보내지 않습니다.
-        </p>
-        <div>
-          <button type="button" disabled={entries.length === 0} onClick={() => download("daylog-daily-log.csv", `﻿${dailyLogToCsv(entries)}`, "text/csv;charset=utf-8")}>CSV 내보내기</button>
-          <button type="button" disabled={entries.length === 0} onClick={() => download("daylog-daily-log.json", JSON.stringify(entries, null, 2), "application/json")}>JSON 내보내기</button>
-          <button
-            type="button"
-            disabled={entries.length === 0}
-            onClick={() => { if (window.confirm("저장된 날짜별 기록을 모두 삭제할까요?")) clearDailyLog(); }}
-          >기록 삭제</button>
-        </div>
-      </div>
+      <p className="log-intro">
+        위젯 값을 <strong>하루 한 줄씩 자동 저장</strong>합니다. {Number(HISTORY_START_DATE.slice(5, 7))}월 {Number(HISTORY_START_DATE.slice(8, 10))}일부터 어제까지는 과거 원자료로 채웠고, 오늘부터는 실시간으로 쌓입니다.
+        <span> · {days.length}일 기록 · 이 브라우저에만 저장</span>
+      </p>
+
+      {entries.length > 0 && (
+        <SmallMultiples
+          entries={entries}
+          activeKey={view === "trend" || view === "calendar" ? metric?.key : undefined}
+          onPick={(key) => { setPickedMetric(key); setView("trend"); document.getElementById("log-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+        />
+      )}
 
       {days.length === 0 ? (
         <p className="log-empty">아직 저장된 기록이 없습니다. 위젯이 처음 정상 조회되면 오늘 날짜로 자동 기록됩니다.</p>
       ) : (
         <>
+          <h3 className="log-detail__title" id="log-detail">날짜별로 자세히</h3>
           <div className="log-timeline" role="tablist" aria-label="기록된 날짜">
             {days.map(([date, rows]) => (
               <button
@@ -137,58 +137,44 @@ export function DailyLogPanel({ selectedDate: controlledDate, onSelectDate }: Da
             </ul>
           </div>
 
-          <div className="log-grid">
-            <details className="log-matrix-wrap">
-              <summary>날짜 × 지표 전체 표 보기 <small>(최근 {matrixDates.length}일 · {metrics.length}개 지표)</small></summary>
-              <div className="log-matrix history-table-wrap">
-              <table className="history-table">
-                <caption>날짜 × 지표 한눈에 보기 (최근 {matrixDates.length}일, 색이 진할수록 그 지표의 높은 값)</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">지표</th>
-                    {matrixDates.map((date) => <th scope="col" key={date}>{date.slice(5)}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {metrics.map((item) => {
-                    const cells = matrixDates.map((date) => matrixCell(item.key, date));
-                    const present = cells.filter((cell) => cell !== undefined);
-                    const lo = Math.min(...present.map((cell) => cell.latest));
-                    const hi = Math.max(...present.map((cell) => cell.latest));
-                    return (
-                      <tr key={item.key}>
-                        <th scope="row">{item.label}</th>
-                        {cells.map((cell, index) => (
-                          <td
-                            key={matrixDates[index]}
-                            className={cell ? "heat" : "heat heat--empty"}
-                            style={cell ? ({ "--heat": `${Math.round(18 + ratio(cell.latest, lo, hi) * 62)}%` } as React.CSSProperties) : undefined}
-                            title={cell ? `${matrixDates[index]} · ${formatNumber(cell.latest, item.unit)}` : "기록 없음"}
-                          >
-                            {cell ? new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 }).format(cell.latest) : "–"}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <div className="log-views">
+            <div className="log-views__bar">
+              <div className="filter-chips" role="tablist" aria-label="기록 보기 방식">
+                {VIEWS.map((item) => (
+                  <button key={item.id} type="button" role="tab" id={`log-tab-${item.id}`} className="filter-chip" aria-selected={view === item.id} aria-controls="log-view-panel" onClick={() => setView(item.id)}>
+                    {item.title}
+                  </button>
+                ))}
               </div>
-            </details>
-
-            <div className="log-trend">
-              <div className="log-trend__head">
-                <label htmlFor="trend-metric">추세 지표</label>
-                <select id="trend-metric" value={metric?.key ?? ""} onChange={(event) => setPickedMetric(event.target.value)}>
-                  {metrics.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
-                </select>
-              </div>
-              {metric && <TrendChart series={series} unit={metric.unit} label={metric.label} />}
-              <p className="log-trend__legend"><i className="legend-band" /> 그날 최소~최대 <i className="legend-line" /> 그날 마지막 값</p>
+              {(
+                <label className="log-views__metric">
+                  <span>지표</span>
+                  <select aria-label="지표 선택" value={metric?.key ?? ""} onChange={(event) => setPickedMetric(event.target.value)}>
+                    {metrics.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+            <p className="log-views__desc">{VIEWS.find((item) => item.id === view)!.desc}</p>
+            <div id="log-view-panel" role="tabpanel" aria-labelledby={`log-tab-${view}`} className="log-views__panel">
+              {view === "trend" && metric && (
+                <>
+                  <TrendChart series={series} unit={metric.unit} label={metric.label} />
+                  <p className="log-trend__legend"><i className="legend-band" /> 그날 최소~최대 <i className="legend-line" /> 그날 마지막 값</p>
+                </>
+              )}
+              {view === "calendar" && metric && (
+                <CalendarHeatmap entries={series} unit={metric.unit} label={metric.label} selectedDate={selectedDate} onSelectDate={setPickedDate} />
+              )}
             </div>
           </div>
         </>
       )}
+      <div className="log-actions">
+        <button type="button" disabled={entries.length === 0} onClick={() => download("daylog-daily-log.csv", `﻿${dailyLogToCsv(entries)}`, "text/csv;charset=utf-8")}>CSV 내보내기</button>
+        <button type="button" disabled={entries.length === 0} onClick={() => download("daylog-daily-log.json", JSON.stringify(entries, null, 2), "application/json")}>JSON 내보내기</button>
+        <button type="button" disabled={entries.length === 0} onClick={() => { if (window.confirm("저장된 날짜별 기록을 모두 삭제할까요?")) clearDailyLog(); }}>기록 삭제</button>
+      </div>
       <p className="log-source">
         <span>자동 채움 출처</span>
         <a href={upbitSourceUrl()} target="_blank" rel="noreferrer">Upbit 일봉 원자료 ↗</a>

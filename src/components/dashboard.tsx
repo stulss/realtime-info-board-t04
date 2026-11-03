@@ -12,7 +12,6 @@ import {
 import { WidgetTile } from "./widget-tile";
 import { DailyCloseSync } from "./daily-close-sync";
 import { DailyLogPanel } from "./daily-log-panel";
-import { VizSection } from "./viz-section";
 import { recordWidgetMetric, seriesFor } from "@/lib/history/daily-log";
 import { useDailyLog } from "@/lib/history/use-daily-log";
 import { Briefing } from "./briefing";
@@ -23,7 +22,7 @@ import {
   fetchWidgetPayload,
 } from "@/lib/client/widget-state";
 
-type Group = "market" | "env" | "world";
+type Group = "market" | "env" | "life";
 type WidgetDef = {
   id: string;
   group: Group;
@@ -45,14 +44,7 @@ const WIDGETS: readonly WidgetDef[] = [
   { id: "weather-forecast", group: "env", name: (p) => `${p.name} 오늘 예보`, icon: "◐", interval: 60 * 60_000, located: true },
   { id: "air-quality", group: "env", name: (p) => `${p.name} 대기질`, icon: "◌", interval: 30 * 60_000, located: true },
   { id: "exchange-rate", group: "market", name: "원·달러 고시환율", icon: "₩", interval: 60 * 60_000 },
-  { id: "coingecko", group: "market", name: "이더리움", icon: "Ξ", interval: 2 * 60_000 },
-  { id: "holiday", group: "world", name: "다음 공휴일", icon: "★", interval: 60 * 60_000 },
-  { id: "usgs-earthquake", group: "world", name: "전 세계 지진", icon: "〰", interval: 5 * 60_000 },
-  { id: "status", group: "world", name: "GitHub 상태", icon: "◉", interval: 5 * 60_000 },
-  { id: "kp-index", group: "world", name: "우주날씨 Kp", icon: "☄", interval: 15 * 60_000 },
-  { id: "iss", group: "world", name: "ISS 위치", icon: "✦", interval: 15_000 },
-  { id: "frankfurter-rate", group: "market", name: "USD/KRW 국제환율", icon: "$", interval: 60 * 60_000 },
-  { id: "sensor-community", group: "env", name: "주변 시민 센서 PM2.5", icon: "⌁", interval: 5 * 60_000, located: true },
+  { id: "holiday", group: "life", name: "다음 공휴일", icon: "★", interval: 60 * 60_000 },
   { id: "kma-weather", group: "env", name: (p) => `기상청 ${p.name}`, icon: "☀", interval: 10 * 60_000, located: true },
   { id: "airkorea", group: "env", name: (p) => `에어코리아 ${p.sido ?? p.name}`, icon: "≋", interval: 30 * 60_000, located: true },
 ];
@@ -61,7 +53,7 @@ const FILTERS = [
   { id: "all", title: "전체" },
   { id: "market", title: "시세·환율" },
   { id: "env", title: "날씨·대기" },
-  { id: "world", title: "세계·생활" },
+  { id: "life", title: "생활" },
 ] as const;
 type Filter = (typeof FILTERS)[number]["id"];
 
@@ -153,11 +145,7 @@ function DashboardView() {
   const [filter, setFilter] = useState<Filter>("all");
   const [pickedDate, setPickedDate] = useState<string | null>(null);
 
-  /** 3D 지형에서 막대를 누르면 날짜별 기록 패널로 이동한다. */
-  function pickDateFrom3D(date: string) {
-    setPickedDate(date);
-    document.getElementById("daily-log")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-  }
+
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
@@ -251,8 +239,6 @@ function DashboardView() {
           return <DashboardWidget key={widget.id} widget={widget} hidden={hidden} />;
         })}
       </section>
-
-      <VizSection onPickDate={pickDateFrom3D} />
 
       <DailyLogPanel selectedDate={pickedDate} onSelectDate={setPickedDate} />
       <DailyCloseSync />

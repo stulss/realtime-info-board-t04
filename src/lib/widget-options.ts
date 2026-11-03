@@ -25,19 +25,8 @@ export const EXCHANGE_CURRENCIES = [
 export type ExchangeCurrency = (typeof EXCHANGE_CURRENCIES)[number]["value"];
 
 export const DEFAULT_EXCHANGE_CURRENCY: ExchangeCurrency = "USD";
-export const DEFAULT_MARKET_ITEM_NAME = "파괴강석";
-
 const EXCHANGE_CURRENCY_VALUES = new Set<string>(EXCHANGE_CURRENCIES.map(({ value }) => value));
 
 export function isExchangeCurrency(value: string): value is ExchangeCurrency {
   return EXCHANGE_CURRENCY_VALUES.has(value);
-}
-
-export function normalizeMarketItemName(value: string | null | undefined): string {
-  const normalized = value?.trim().replace(/\s+/g, " ") ?? "";
-  return normalized || DEFAULT_MARKET_ITEM_NAME;
-}
-
-export function isValidMarketItemName(value: string): boolean {
-  return value.length <= 50 && /^[\p{L}\p{N}\s()[\]{}+\-·]+$/u.test(value);
 }

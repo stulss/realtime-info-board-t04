@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { daysBetween, fetchKpIndex, fetchNextHoliday, fetchForecast } from "./forecast-extras";
-import { kpGrade, pm25Grade, uvGrade } from "@/lib/air-grade";
+import { daysBetween, fetchNextHoliday, fetchForecast } from "./forecast-extras";
+import { pm25Grade, uvGrade } from "@/lib/air-grade";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -51,20 +51,6 @@ describe("일간 예보·공휴일·Kp adapter", () => {
     expect(daysBetween("2026-11-03", "2026-11-04")).toBe(1);
   });
 
-  it("Kp: 가장 최신 관측값과 오늘 최대값을 표시한다", async () => {
-    stubFetch([
-      { time_tag: "2026-10-27T00:00:00", Kp: 1.67 },
-      { time_tag: "2026-10-27T06:00:00", Kp: 5.33 },
-      { time_tag: "2026-10-27T03:00:00", Kp: 2.67 },
-      { time_tag: "2026-10-27T09:00:00", Kp: 3.33 },
-    ]);
-    const result = await fetchKpIndex();
-    expect(result.value?.headline).toBe("Kp 3.33");
-    expect(result.value?.details?.[0]?.value).toBe("5.33");
-    expect(result.sourceTimestamp).toBe("2026-10-27T09:00:00Z");
-    stubFetch([]);
-    await expect(fetchKpIndex()).rejects.toMatchObject({ kind: "schema_changed" });
-  });
 
   it("등급 함수는 경계값을 올바르게 나눈다", () => {
     expect(pm25Grade(35)).toBe("보통");
@@ -72,7 +58,5 @@ describe("일간 예보·공휴일·Kp adapter", () => {
     expect(uvGrade(2.9)).toBe("낮음");
     expect(uvGrade(6)).toBe("높음");
     expect(uvGrade(11)).toBe("위험");
-    expect(kpGrade(4)).toBe("활동적");
-    expect(kpGrade(5)).toBe("지자기 폭풍");
   });
 });

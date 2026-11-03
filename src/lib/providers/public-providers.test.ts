@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchGithubStatus } from "./github-status";
 import { fetchUpbitDailyHistory, fetchUpbitTicker } from "./upbit";
 
 afterEach(() => {
@@ -19,16 +18,6 @@ describe("public provider adapters", () => {
     expect(result.source.endpointTemplate).not.toContain("key");
   });
 
-  it("GitHub 상태 응답에서 영향받는 구성요소를 계산한다", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
-      page: { updated_at: "2026-08-26T00:00:00.000Z" },
-      status: { indicator: "minor", description: "Minor Service Outage" },
-      components: [{ status: "operational" }, { status: "degraded_performance" }],
-    })));
-    const result = await fetchGithubStatus();
-    expect(result.value?.headline).toBe("일부 기능 성능 저하");
-    expect(result.value?.details?.[0]?.value).toBe("1개");
-  });
 
   it("Upbit 실제 일봉을 서로 다른 KST 날짜 기록으로 정규화한다", async () => {
     vi.useFakeTimers();
@@ -94,8 +83,4 @@ describe("public provider adapters", () => {
     await expect(fetchUpbitTicker()).rejects.toMatchObject({ kind: "schema_changed" });
   });
 
-  it("GitHub Status 필수 필드가 없으면 스키마 변경으로 분류한다", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ status: {} })));
-    await expect(fetchGithubStatus()).rejects.toMatchObject({ kind: "schema_changed" });
-  });
 });

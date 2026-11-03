@@ -1,6 +1,6 @@
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
 import { DEFAULT_PLACE, placeKey, type Place } from "@/lib/location";
-import { addDays, daysBetweenDates, kstToday, resolveRange } from "@/lib/history/range";
+import { resolveRange } from "@/lib/history/range";
 
 /** 공급자가 확정해 준 "그날의 값" 한 건. 클라이언트가 날짜별 기록에 그대로 채운다. */
 export type HistoryPoint = {
@@ -101,101 +101,6 @@ export async function airQualityHistory(place: Place, from: string, to: string):
   return points;
 }
 
-/* ---------- 전 세계 공통 지표 ---------- */
-
-const USGS_LIMIT = 20_000;
-
-export async function earthquakeHistory(from: string, to: string): Promise<HistoryPoint[]> {
-  const end = addDays(to, 2); // KST 날짜 경계를 덮도록 여유를 둔다
-  const url = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=csv&minmagnitude=2.5&orderby=time"
-    + `&starttime=${addDays(from, -1)}&endtime=${end}&limit=${USGS_LIMIT}`;
-  let response: Response;
-  try {
-    response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-  } catch {
-    throw new ProviderHttpError("USGS 과거 지진 목록에 연결할 수 없습니다.", undefined, undefined, "offline");
-  }
-  if (!response.ok) throw new ProviderHttpError(`USGS가 HTTP ${response.status}을 반환했습니다.`, response.status);
-  const lines = (await response.text()).trim().split("\n");
-  if (!lines[0]?.startsWith("time,")) {
-    throw new ProviderHttpError("USGS 과거 지진 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
-  }
-  const counts = new Map<string, number>();
-  for (const line of lines.slice(1)) {
-    const time = line.slice(0, line.indexOf(","));
-    const parsed = Date.parse(time);
-    if (Number.isNaN(parsed)) continue;
-    const date = kstToday(new Date(parsed));
-    counts.set(date, (counts.get(date) ?? 0) + 1);
-  }
-  // 한도에 걸렸으면 가장 오래된 날은 일부만 담겼을 수 있어 제외한다.
-  const truncated = lines.length - 1 >= USGS_LIMIT;
-  const oldest = [...counts.keys()].sort()[0];
-  const points: HistoryPoint[] = [];
-  for (let date = from; date <= to; date = addDays(date, 1)) {
-    if (truncated && date <= oldest) continue;
-    points.push({ metricKey: "usgs-quake-count", label: "전 세계 M2.5+ 지진 수(24h)", unit: "건", date, value: counts.get(date) ?? 0, sourceTimestamp: stamp(date) });
-  }
-  return points;
-}
-
-type KpBody = { Kp?: number[]; datetime?: string[] };
-
-export async function kpHistory(from: string, to: string): Promise<HistoryPoint[]> {
-  const body = await fetchJson<KpBody>(
-    `https://kp.gfz.de/app/json/?start=${from}T00:00:00Z&end=${to}T23:59:59Z&index=Kp`,
-    { timeoutMs: 15_000 },
-  );
-  if (!Array.isArray(body?.Kp) || !Array.isArray(body?.datetime) || body.Kp.length !== body.datetime.length) {
-    throw new ProviderHttpError("GFZ Kp 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
-  }
-  const byDate = new Map<string, number[]>();
-  body.datetime.forEach((time, index) => {
-    const value = body.Kp![index];
-    if (!isNum(value)) return;
-    const date = time.slice(0, 10);
-    byDate.set(date, [...(byDate.get(date) ?? []), value]);
-  });
-  const points: HistoryPoint[] = [];
-  for (const [date, values] of byDate) {
-    if (!inRange(date, from, to)) continue;
-    points.push({ metricKey: "noaa-kp", label: "지자기 Kp 지수", unit: "Kp", date, value: round(mean(values)), min: round(Math.min(...values)), max: round(Math.max(...values)), sourceTimestamp: stamp(date) });
-  }
-  return points;
-}
-
-export async function ethHistory(from: string, to: string, now: Date = new Date()): Promise<HistoryPoint[]> {
-  const days = daysBetweenDates(from, kstToday(now)) + 1;
-  const body = await fetchJson<{ prices?: Array<[number, number]> }>(
-    `https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=${Math.min(365, Math.max(2, days))}&interval=daily`,
-    { retries: 1, timeoutMs: 15_000 },
-  );
-  if (!Array.isArray(body?.prices)) {
-    throw new ProviderHttpError("CoinGecko 과거 가격 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
-  }
-  const points: HistoryPoint[] = [];
-  for (const [timestamp, price] of body.prices) {
-    if (!isNum(timestamp) || !isNum(price)) continue;
-    const date = new Date(timestamp).toISOString().slice(0, 10); // 일별 값은 UTC 0시 기준
-    if (!inRange(date, from, to)) continue;
-    points.push({ metricKey: "coingecko-eth-usd", label: "ETH/USD", unit: "USD", date, value: round(price), sourceTimestamp: new Date(timestamp).toISOString() });
-  }
-  return points;
-}
-
-export async function usdKrwHistory(from: string, to: string): Promise<HistoryPoint[]> {
-  const rows = await fetchJson<Array<{ date: string; rate: number }>>(
-    `https://api.frankfurter.dev/v2/rates?from=${from}&to=${to}&base=USD&quotes=KRW`,
-    { timeoutMs: 15_000 },
-  );
-  if (!Array.isArray(rows)) {
-    throw new ProviderHttpError("Frankfurter 과거 환율 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
-  }
-  return rows
-    .filter((row) => typeof row?.date === "string" && isNum(row.rate) && inRange(row.date, from, to))
-    .map((row) => ({ metricKey: "frankfurter-usd-krw", label: "USD/KRW 참조환율", unit: "KRW", date: row.date, value: row.rate, sourceTimestamp: stamp(row.date) }));
-}
-
 /* ---------- 합치기 + 서버 캐시 ---------- */
 
 const TTL_MS = 6 * 60 * 60_000;
@@ -209,10 +114,6 @@ export async function buildHistory(place: Place, fromParam: string | null, now: 
   const jobs: Array<[string, () => Promise<HistoryPoint[]>]> = [
     ["Open-Meteo 기온", () => weatherHistory(place, from, to)],
     ["Open-Meteo 대기질", () => airQualityHistory(place, from, to)],
-    ["USGS 지진", () => earthquakeHistory(from, to)],
-    ["GFZ 지자기 Kp", () => kpHistory(from, to)],
-    ["CoinGecko ETH/USD", () => ethHistory(from, to, now)],
-    ["Frankfurter USD/KRW", () => usdKrwHistory(from, to)],
   ];
   const settled = await Promise.allSettled(jobs.map(([, job]) => job()));
   const points: HistoryPoint[] = [];

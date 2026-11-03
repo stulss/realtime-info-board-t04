@@ -1,6 +1,6 @@
 import type { WidgetPayload } from "@/types/widget";
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
-import { kpGrade, uvGrade } from "@/lib/air-grade";
+import { uvGrade } from "@/lib/air-grade";
 import { toKstDate } from "@/lib/history/daily-log";
 import { DEFAULT_PLACE, placeKey, type Place } from "@/lib/location";
 import { offsetOf, toKstIso } from "./open-meteo";
@@ -102,48 +102,6 @@ export async function fetchNextHoliday(now: Date = new Date()): Promise<WidgetPa
     source: holidaySource,
     fetchedAt: new Date().toISOString(),
     nextRefreshAt: new Date(Date.now() + 60 * 60_000).toISOString(),
-    cacheAgeMs: 0,
-  };
-}
-
-/* ---------- NOAA SWPC 지자기 Kp ---------- */
-
-type KpRow = { time_tag: string; Kp: number };
-
-export const kpSource: WidgetPayload["source"] = {
-  provider: "NOAA SWPC",
-  docsUrl: "https://www.swpc.noaa.gov/products/planetary-k-index",
-  endpointTemplate: "GET /products/noaa-planetary-k-index.json",
-  attribution: "NOAA Space Weather Prediction Center (공개 도메인)",
-};
-
-export async function fetchKpIndex(): Promise<WidgetPayload> {
-  const rows = await fetchJson<KpRow[]>("https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json");
-  const valid = Array.isArray(rows)
-    ? rows.filter((row) => typeof row?.time_tag === "string" && Number.isFinite(Number(row.Kp)))
-    : [];
-  if (valid.length === 0) {
-    throw new ProviderHttpError("NOAA Kp 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
-  }
-  const latest = valid.reduce((best, row) => (row.time_tag > best.time_tag ? row : best));
-  const kp = Number(latest.Kp);
-  const day = valid.filter((row) => row.time_tag >= latest.time_tag.slice(0, 10)).map((row) => Number(row.Kp));
-  return {
-    value: {
-      headline: `Kp ${kp.toFixed(2)}`,
-      subline: `지구 자기장 · ${kpGrade(kp)}`,
-      trend: kp >= 5 ? "up" : "flat",
-      metric: { key: "noaa-kp", label: "지자기 Kp 지수", value: kp, unit: "Kp" },
-      details: [
-        { label: "오늘(UTC) 최대", value: Math.max(...day).toFixed(2) },
-        { label: "관측 간격", value: "3시간" },
-      ],
-    },
-    status: "ok",
-    source: kpSource,
-    sourceTimestamp: `${latest.time_tag}Z`,
-    fetchedAt: new Date().toISOString(),
-    nextRefreshAt: new Date(Date.now() + 15 * 60_000).toISOString(),
     cacheAgeMs: 0,
   };
 }

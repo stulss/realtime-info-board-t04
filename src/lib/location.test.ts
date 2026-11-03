@@ -2,12 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_PLACE, isInKorea, parsePlace, placeKey, placeQuery, shortSido, toKmaGrid } from "./location";
 import { describePlace, resolvePlace } from "./providers/place";
 import { fetchAirQuality, fetchWeather, formatOffset, toKstIso } from "./providers/open-meteo";
-import { fetchSensorCommunity } from "./providers/sensor-community";
 
 afterEach(() => vi.unstubAllGlobals());
 
 const BUSAN = { lat: 35.18, lon: 129.08, name: "부산 연산5동", sido: "부산" } as const;
-const TOKYO = { lat: 35.68, lon: 139.69, name: "도쿄" } as const;
 
 describe("위치 파싱·변환", () => {
   it("쿼리가 없으면 서울 기본 위치, 있으면 소수 둘째 자리로 반올림한다", () => {
@@ -101,11 +99,4 @@ describe("위치 기반 어댑터", () => {
     expect(toKstIso("2026-11-03T15:15")).toBe("2026-11-03T15:15:00+09:00");
   });
 
-  it("시민 센서: 선택 위치 중심 좌표로 조회하고 위치 이름을 표기한다", async () => {
-    const spy = vi.fn().mockResolvedValue(Response.json([]));
-    vi.stubGlobal("fetch", spy);
-    const result = await fetchSensorCommunity(TOKYO);
-    expect(String(spy.mock.calls[0][0])).toContain("area=35.68,139.69,50");
-    expect(result.value?.subline).toContain("도쿄");
-  });
 });

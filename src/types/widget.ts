@@ -49,8 +49,6 @@ export type WidgetValue = {
   metric?: WidgetMetric;
   /** 브리핑 등 화면 조합용 기계 판독 값(선택). 표시 문구 파싱을 피하려고 둔다. */
   facts?: Record<string, number>;
-  /** 지도·3D 지구본용 좌표 목록(선택). value는 규모 같은 크기 값. */
-  points?: Array<{ lat: number; lon: number; value: number; label: string; at?: string }>;
   subline?: string;
   trend?: "up" | "down" | "flat";
   details?: Array<{ label: string; value: string }>;

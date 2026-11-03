@@ -10,17 +10,12 @@ type Source = { name: string; what: string; url: string; terms: string; note?: s
 
 const SOURCES: Source[] = [
   { name: "Open-Meteo", what: "내 위치 날씨·예보·대기질(CAMS 모델)과 과거 기온·PM2.5", url: "https://open-meteo.com/en/terms", terms: "CC BY 4.0 · 무료 API는 비상업적 이용 한정", note: "상업 서비스로 운영하려면 Open-Meteo의 상업용 구독이 필요합니다." },
-  { name: "기상청 단기예보 · 에어코리아", what: "초단기실황, 시·도별 대기오염 측정값", url: "https://www.data.go.kr", terms: "공공데이터포털 이용허락 조건(공공누리)에 따름", note: "서버 환경변수 DATA_GO_KR_SERVICE_KEY가 있어야 표시됩니다." },
-  { name: "USGS Earthquake Hazards Program", what: "최근 24시간·과거 일별 지진", url: "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits", terms: "미국 정부 저작물(공개 도메인) · 출처 표기 권장" },
-  { name: "NOAA SWPC · GFZ Potsdam", what: "지자기 Kp 지수(실시간·과거)", url: "https://www.swpc.noaa.gov/content/data-access", terms: "NOAA 공개 도메인 · GFZ는 CC BY 4.0", note: "GFZ Kp는 출처 표기가 필요합니다." },
+  { name: "기상청 단기예보", what: "내 위치 초단기실황(기온·습도·강수)", url: "https://www.data.go.kr/data/15084084/openapi.do", terms: "공공데이터포털 이용허락 조건(공공누리)에 따름", note: "서버 환경변수 DATA_GO_KR_SERVICE_KEY가 있어야 표시됩니다." },
+  { name: "에어코리아(한국환경공단)", what: "내 시·도 측정소의 PM2.5 평균", url: "https://www.data.go.kr/data/15073861/openapi.do", terms: "공공데이터포털 이용허락 조건(공공누리)에 따름", note: "기상청과 같은 DATA_GO_KR_SERVICE_KEY를 씁니다." },
+  { name: "한국수출입은행", what: "고시환율(매매기준율)", url: "https://www.koreaexim.go.kr", terms: "공공데이터 이용 조건 · 일 1,000회 호출 제한", note: "서버 환경변수 EXIM_SERVICE_KEY가 있어야 표시됩니다." },
   { name: "Upbit Open API", what: "BTC/KRW 시세와 일봉 종가", url: "https://docs.upbit.com", terms: "Upbit 이용약관·API 이용 조건에 따름" },
-  { name: "CoinGecko", what: "ETH/USD 시세와 일별 가격", url: "https://www.coingecko.com/en/api/documentation", terms: "무료 공개 API는 호출 제한과 출처 표기 조건이 있습니다.", note: "Powered by CoinGecko API" },
-  { name: "Frankfurter · 한국수출입은행", what: "USD/KRW 참조환율 · 고시환율", url: "https://frankfurter.dev", terms: "Frankfurter는 ECB 등 공식 참조환율을 무료 제공 · 수출입은행은 별도 인증키" },
-  { name: "Open Notify", what: "ISS 현재 위치", url: "http://open-notify.org", terms: "공개 API" },
-  { name: "Sensor.Community", what: "주변 시민 센서 PM2.5", url: "https://sensor.community", terms: "ODbL(데이터베이스 라이선스)" },
   { name: "Nager.Date", what: "한국 공휴일", url: "https://date.nager.at", terms: "MIT 라이선스 공개 API" },
   { name: "BigDataCloud", what: "좌표 → 지명 변환(역지오코딩)", url: "https://www.bigdatacloud.com/free-api/free-reverse-geocode-to-city-api", terms: "무료 클라이언트용 API · 출처 표기 필요" },
-  { name: "GitHub Status", what: "GitHub 서비스 상태", url: "https://www.githubstatus.com", terms: "공개 상태 API" },
 ];
 
 export default function AboutPage() {
@@ -71,7 +66,7 @@ export default function AboutPage() {
         <h2 id="notes-heading">알아 두세요</h2>
         <ul>
           <li>대기질(Open-Meteo)은 위성·모델 기반 추정값이라 측정소 실측값과 다를 수 있습니다. 한국 기준 등급은 현재값에 준용한 표시입니다.</li>
-          <li>지진·우주날씨·환율·시세는 정보 제공용이며 투자·안전 판단의 근거로 쓰지 마세요.</li>
+          <li>환율·시세는 정보 제공용이며 투자·환전 판단의 근거로 쓰지 마세요. 실제 거래 가격은 각 기관·거래소에서 확인하세요.</li>
           <li>과거 값은 공급자가 제공한 일별 원자료입니다. 서버 점검이나 공급자 오류로 일부 지표가 비어 있을 수 있고, 이 경우 가능한 지표만 채웁니다.</li>
         </ul>
       </section>

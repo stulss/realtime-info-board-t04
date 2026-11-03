@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchCoingeckoPrices } from "./coingecko";
 import { fetchAirKorea, fetchKmaWeather, kmaBaseTime, normalizeServiceKey } from "./data-go-kr";
-import { fetchFrankfurterUsdKrw } from "./frankfurter";
-import { fetchIssPosition } from "./iss";
 import { fetchAirQuality, fetchWeather, pm25Grade, toKstIso } from "./open-meteo";
-import { fetchSensorCommunity } from "./sensor-community";
-import { fetchUsgsEarthquakes } from "./usgs";
 
 beforeEach(() => {
   delete process.env.DATA_GO_KR_SERVICE_KEY;
@@ -20,19 +15,6 @@ function stubFetch(body: unknown) {
 }
 
 describe("무료 공개 API adapter", () => {
-  it("USGS: 최대 규모와 24시간 건수를 정규화한다", async () => {
-    stubFetch({
-      metadata: { generated: 1_793_686_620_000, count: 2 },
-      features: [
-        { properties: { mag: 3.1, place: "A", time: 1_793_680_000_000 } },
-        { properties: { mag: 5.4, place: "Tokyo, Japan", time: 1_793_681_000_000 } },
-        { properties: { mag: null, place: "B", time: 1 } },
-      ],
-    });
-    const result = await fetchUsgsEarthquakes();
-    expect(result.value?.headline).toBe("최대 M5.4");
-    expect(result.value?.metric).toMatchObject({ value: 2, unit: "건" });
-  });
 
   it("Open-Meteo 날씨: KST 원천 시각과 수치 지표를 만든다", async () => {
     stubFetch({ current: { time: "2026-11-03T15:15", temperature_2m: 15.1, apparent_temperature: 14.2, relative_humidity_2m: 67, precipitation: 0, weather_code: 2, wind_speed_10m: 4.7 } });
@@ -53,40 +35,9 @@ describe("무료 공개 API adapter", () => {
     expect(toKstIso("2026-11-03T15:00")).toBe("2026-11-03T15:00:00+09:00");
   });
 
-  it("Frankfurter: 응답 형식이 바뀌면 schema_changed", async () => {
-    stubFetch({ date: "2026-11-03", rate: 1339.73, base: "USD", quote: "KRW" });
-    expect((await fetchFrankfurterUsdKrw()).value?.metric?.value).toBe(1339.73);
-    stubFetch({ unexpected: true });
-    await expect(fetchFrankfurterUsdKrw()).rejects.toMatchObject({ kind: "schema_changed" });
-  });
 
-  it("CoinGecko: ETH를 헤드라인, BTC를 상세로 표시한다", async () => {
-    stubFetch({ bitcoin: { usd: 76377, usd_24h_change: -2.3 }, ethereum: { usd: 2242.14, usd_24h_change: -1.9, last_updated_at: 1_793_686_620 } });
-    const result = await fetchCoingeckoPrices();
-    expect(result.value?.headline).toBe("$2,242.14");
-    expect(result.value?.trend).toBe("down");
-    expect(result.value?.details?.[1]?.value).toBe("$76,377.00");
-  });
 
-  it("ISS: 문자열 좌표를 방위 표기로 바꾼다", async () => {
-    stubFetch({ iss_position: { latitude: "-21.8385", longitude: "174.5260" }, timestamp: 1_793_686_651 });
-    expect((await fetchIssPosition()).value?.headline).toBe("21.84°S, 174.53°E");
-  });
 
-  it("Sensor.Community: 센서가 없으면 빈 상태 문구, 있으면 평균과 지표를 만든다", async () => {
-    stubFetch([]);
-    const empty = await fetchSensorCommunity();
-    expect(empty.value?.headline).toBe("주변 센서 없음");
-    expect(empty.value?.metric).toBeUndefined();
-
-    stubFetch([
-      { timestamp: "2026-11-03 06:00:00", sensordatavalues: [{ value_type: "P1", value: "30" }, { value_type: "P2", value: "10" }] },
-      { timestamp: "2026-11-03 06:01:00", sensordatavalues: [{ value_type: "P2", value: "20" }] },
-    ]);
-    const result = await fetchSensorCommunity();
-    expect(result.value?.metric?.value).toBe(15);
-    expect(result.sourceTimestamp).toBe("2026-11-03T06:01:00Z");
-  });
 });
 
 describe("공공데이터포털 adapter", () => {

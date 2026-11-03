@@ -21,8 +21,7 @@
     "dayjs": "latest",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "three": "0.187.0"
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@playwright/test": "latest",
@@ -32,7 +31,6 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "@types/three": "0.187.0",
     "@vitejs/plugin-react": "latest",
     "eslint": "9.39.5",
     "eslint-config-next": "latest",

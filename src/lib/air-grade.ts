@@ -13,9 +13,3 @@ export function uvGrade(value: number): string {
   if (value < 11) return "매우 높음";
   return "위험";
 }
-
-export function kpGrade(value: number): string {
-  if (value < 4) return "조용함";
-  if (value < 5) return "활동적";
-  return "지자기 폭풍";
-}
