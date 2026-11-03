@@ -63,10 +63,14 @@ export async function fetchExchangeRate(currency: ExchangeCurrency = DEFAULT_EXC
 
   if (!matched) throw new ProviderHttpError(`최근 7일 이내 ${currency} 고시 환율을 찾지 못했습니다.`, 404);
   const fetchedAt = new Date().toISOString();
+  const rateValue = Number((matched.deal_bas_r ?? "").replace(/,/g, ""));
   return {
     value: {
       headline: `${matched.deal_bas_r}원`,
       subline: `${currency} 매매기준율`,
+      metric: Number.isFinite(rateValue)
+        ? { key: `exim:${currency}`, label: `수출입은행 ${currency} 매매기준율`, value: rateValue, unit: "KRW" }
+        : undefined,
       details: [{ label: "고시일", value: publishedDate }],
     },
     status: "ok",

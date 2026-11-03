@@ -2,28 +2,41 @@
 
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { WidgetPayload } from "@/types/widget";
 import {
   DEFAULT_EXCHANGE_CURRENCY,
-  DEFAULT_MARKET_ITEM_NAME,
   EXCHANGE_CURRENCIES,
-  normalizeMarketItemName,
   type ExchangeCurrency,
 } from "@/lib/widget-options";
 import { WidgetCard } from "./widget-card";
 import { DailyHistoryPanel } from "./daily-history-panel";
+import { DailyLogPanel } from "./daily-log-panel";
+import { recordWidgetMetric } from "@/lib/history/daily-log";
 import {
   displayPayloadAfterFailure,
   fetchWidgetPayload,
 } from "@/lib/client/widget-state";
 
 const WIDGETS = [
-  { id: "lostark-notices", name: "로스트아크 공지", icon: "⚔", interval: 15 * 60_000 },
-  { id: "lostark-market", name: "로스트아크 거래장", icon: "◇", interval: 5 * 60_000 },
-  { id: "upbit-ticker", name: "비트코인", icon: "₿", interval: 20_000 },
-  { id: "exchange-rate", name: "원·달러 고시환율", icon: "₩", interval: 60 * 60_000 },
-  { id: "status", name: "GitHub 서비스 상태", icon: "◉", interval: 5 * 60_000 },
+  { id: "upbit-ticker", group: "market", name: "비트코인", icon: "₿", interval: 20_000 },
+  { id: "coingecko", group: "market", name: "이더리움 (CoinGecko)", icon: "Ξ", interval: 2 * 60_000 },
+  { id: "exchange-rate", group: "market", name: "원·달러 고시환율", icon: "₩", interval: 60 * 60_000 },
+  { id: "frankfurter-rate", group: "market", name: "USD/KRW 국제 참조환율", icon: "$", interval: 60 * 60_000 },
+  { id: "kma-weather", group: "env", name: "기상청 서울 날씨", icon: "☀", interval: 10 * 60_000 },
+  { id: "weather", group: "env", name: "서울 날씨 (Open-Meteo)", icon: "☁", interval: 10 * 60_000 },
+  { id: "airkorea", group: "env", name: "에어코리아 미세먼지", icon: "≋", interval: 30 * 60_000 },
+  { id: "air-quality", group: "env", name: "서울 대기질 (Open-Meteo)", icon: "◌", interval: 30 * 60_000 },
+  { id: "sensor-community", group: "env", name: "시민 센서 PM2.5", icon: "⌁", interval: 5 * 60_000 },
+  { id: "usgs-earthquake", group: "world", name: "전 세계 지진 (USGS)", icon: "〰", interval: 5 * 60_000 },
+  { id: "iss", group: "world", name: "국제우주정거장 위치", icon: "✦", interval: 15_000 },
+  { id: "status", group: "world", name: "GitHub 서비스 상태", icon: "◉", interval: 5 * 60_000 },
+] as const;
+
+const GROUPS = [
+  { id: "market", title: "시세 · 환율" },
+  { id: "env", title: "날씨 · 대기" },
+  { id: "world", title: "세계 · 서비스" },
 ] as const;
 
 function DashboardWidget({
@@ -44,6 +57,12 @@ function DashboardWidget({
         ? widget.interval * 4
         : widget.interval,
   });
+
+  const metric = query.data?.status === "ok" ? query.data.value?.metric : undefined;
+  const metricFetchedAt = query.data?.fetchedAt;
+  useEffect(() => {
+    if (metric && metricFetchedAt) recordWidgetMetric(metric, metricFetchedAt);
+  }, [metric, metricFetchedAt]);
 
   const sourceFallback: WidgetPayload["source"] = {
     provider: widget.name,
@@ -83,8 +102,6 @@ export function Dashboard() {
   });
   const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const [currency, setCurrency] = useState<ExchangeCurrency>(DEFAULT_EXCHANGE_CURRENCY);
-  const [marketDraft, setMarketDraft] = useState(DEFAULT_MARKET_ITEM_NAME);
-  const [marketItem, setMarketItem] = useState(DEFAULT_MARKET_ITEM_NAME);
 
   useEffect(() => {
     document.documentElement.dataset.theme = isDark ? "dark" : "light";
@@ -108,12 +125,6 @@ export function Dashboard() {
     setIsRefreshingAll(false);
   }
 
-  function searchMarket(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setMarketItem(normalizeMarketItemName(marketDraft));
-  }
-
-  const marketWidget = WIDGETS.find(({ id }) => id === "lostark-market")!;
   const exchangeWidget = WIDGETS.find(({ id }) => id === "exchange-rate")!;
 
   return (
@@ -143,35 +154,14 @@ export function Dashboard() {
 
       <section className="section-heading">
         <div><span>01</span><h2>내 정보판</h2></div>
-        <p>5개의 신뢰 가능한 데이터 소스</p>
+        <p>{WIDGETS.length}개의 공개 데이터 소스 · 정상 조회값은 날짜별로 자동 기록</p>
       </section>
 
-      <section className="widget-grid" aria-label="실시간 정보 위젯">
-        {WIDGETS.map((widget) => {
-          if (widget.id === "lostark-market") {
-            return (
-              <DashboardWidget
-                key={widget.id}
-                widget={marketWidget}
-                requestPath={`/api/widgets/lostark-market?itemName=${encodeURIComponent(marketItem)}`}
-                controls={(
-                  <form className="widget-search" onSubmit={searchMarket} aria-label="로스트아크 거래장 아이템 검색">
-                    <label htmlFor="market-item-name">아이템 검색</label>
-                    <div>
-                      <input
-                        id="market-item-name"
-                        value={marketDraft}
-                        onChange={(event) => setMarketDraft(event.target.value)}
-                        maxLength={50}
-                        autoComplete="off"
-                      />
-                      <button type="submit">검색</button>
-                    </div>
-                  </form>
-                )}
-              />
-            );
-          }
+      {GROUPS.map((group) => (
+        <section key={group.id} className="widget-group" data-group={group.id} aria-label={`${group.title} 위젯`}>
+          <h3 className="group-title">{group.title}</h3>
+          <div className="widget-grid">
+            {WIDGETS.filter((widget) => widget.group === group.id).map((widget) => {
           if (widget.id === "exchange-rate") {
             return (
               <DashboardWidget
@@ -197,7 +187,11 @@ export function Dashboard() {
           }
           return <DashboardWidget key={widget.id} widget={widget} />;
         })}
-      </section>
+          </div>
+        </section>
+      ))}
+
+      <DailyLogPanel />
 
       <DailyHistoryPanel />
 

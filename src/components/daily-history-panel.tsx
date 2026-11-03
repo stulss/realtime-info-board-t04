@@ -96,7 +96,7 @@ export function DailyHistoryPanel() {
   return (
     <section className="daily-history" aria-labelledby="daily-history-heading">
       <div className="section-heading">
-        <div><span>02</span><h2 id="daily-history-heading">하루 한 번 기록</h2></div>
+        <div><span>03</span><h2 id="daily-history-heading">하루 한 번 기록</h2></div>
         <p>기준 시간대: <strong>Asia/Seoul</strong></p>
       </div>
       <div className="history-intro">

@@ -32,6 +32,7 @@ export async function fetchGithubStatus(): Promise<WidgetPayload> {
     value: {
       headline: STATUS_LABELS[summary.status.indicator] ?? summary.status.description,
       subline: "GitHub 공개 상태 페이지",
+      metric: { key: "github-affected", label: "GitHub 영향받는 구성요소", value: affected, unit: "개" },
       details: [{ label: "영향받는 구성요소", value: `${affected}개` }],
     },
     status: summary.status.indicator === "maintenance" ? "maintenance" : "ok",

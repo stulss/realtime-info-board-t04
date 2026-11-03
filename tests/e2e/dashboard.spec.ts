@@ -106,12 +106,12 @@ test("장애 5종을 서로 다른 문구로 표시하고 오래된 값·빈 상
   }
 });
 
-test("실시간 대시보드가 자체 API만 호출하고 5개 위젯을 유지한다", async ({ page }) => {
+test("실시간 대시보드가 자체 API만 호출하고 12개 위젯을 표시한다", async ({ page }) => {
   const externalBrowserRequests: string[] = [];
   const consoleErrors: string[] = [];
   page.on("request", (request) => {
     const url = request.url();
-    if (url.includes("api.upbit.com") || url.includes("githubstatus.com/api") || url.includes("developer-lostark.game.onstove.com")) {
+    if (["api.upbit.com", "githubstatus.com/api", "earthquake.usgs.gov", "open-meteo.com", "frankfurter.dev", "coingecko.com", "open-notify.org", "sensor.community", "apis.data.go.kr"].some((host) => url.includes(host))) {
       externalBrowserRequests.push(url);
     }
   });
@@ -122,10 +122,10 @@ test("실시간 대시보드가 자체 API만 호출하고 5개 위젯을 유지
   await mockDailyHistory(page);
   await page.setViewportSize({ width: 1440, height: 1100 });
   await page.goto("/");
-  await expect(page.locator(".widget-card")).toHaveCount(5);
+  await expect(page.locator(".widget-card")).toHaveCount(12);
   await expect(page.getByRole("button", { name: "전체 새로고침" })).toBeVisible();
   await expect(page.getByLabel("통화 선택")).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "아이템 검색" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "아이템 검색" })).toHaveCount(0);
   await page.waitForTimeout(2_500);
   expect(externalBrowserRequests).toEqual([]);
   const unexpectedConsoleErrors = EXPECT_LIVE_PROVIDERS
@@ -225,7 +225,7 @@ test("모바일 그리드와 수동 새로고침 쿨다운을 제공한다", asy
   await mockDailyHistory(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  const firstRefresh = page.getByRole("button", { name: "로스트아크 공지 새로고침" });
+  const firstRefresh = page.getByRole("button", { name: "비트코인 새로고침" });
   await expect(firstRefresh).toBeVisible();
   await firstRefresh.click();
   await expect(page.getByText(/수동 갱신 \d+초 후/).first()).toBeVisible();
@@ -241,4 +241,47 @@ test("다크 모드에서도 정보 구조를 유지한다", async ({ page }) =>
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.getByLabel("상태별 검증 위젯").locator(".widget-card")).toHaveCount(5);
   await page.screenshot({ path: `${SCREENSHOT_DIR}/04_다크모드_검증.png`, fullPage: true });
+});
+
+test("정상 조회값을 KST 날짜별로 자동 저장하고 새로고침 후에도 유지하며 중복 집계하지 않는다", async ({ page }) => {
+  const weather = (fetchedAt: string, value: number) => ({
+    value: { headline: `${value}°C`, subline: "서울", metric: { key: "weather-seoul-temp", label: "서울 기온", value, unit: "°C" } },
+    status: "ok",
+    source: { provider: "Open-Meteo", docsUrl: "https://open-meteo.com/en/docs", endpointTemplate: "GET /v1/forecast" },
+    fetchedAt,
+    cacheAgeMs: 0,
+  });
+  let call = 0;
+  await mockDailyHistory(page);
+  await page.route("**/api/widgets/weather", async (route) => {
+    call += 1;
+    // 첫 응답과 재요청은 같은 fetchedAt(서버 캐시 재사용), 이후는 새 조회
+    const body = call <= 2 ? weather("2026-11-03T01:00:00.000Z", 10) : weather("2026-11-03T03:00:00.000Z", 14);
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+  });
+
+  await page.setViewportSize({ width: 1440, height: 1100 });
+  await page.goto("/");
+  const log = page.locator(".daily-log");
+  await expect(log.getByRole("heading", { name: /2026-11-03/ })).toBeVisible();
+  await expect(log.getByRole("cell", { name: "서울 기온" })).toBeVisible();
+
+  const refreshWeather = page.locator(".widget-card", { hasText: "서울 날씨 (Open-Meteo)" }).locator(".refresh-block button").first();
+  await refreshWeather.click(); // 같은 fetchedAt → 표본 1 유지
+  await expect.poll(() => call).toBeGreaterThanOrEqual(2);
+  let stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-log-v1") ?? "[]"));
+  const weatherEntry = () => stored.find((entry: { metricKey: string }) => entry.metricKey === "weather-seoul-temp");
+  expect(weatherEntry().samples).toBe(1);
+
+  await refreshWeather.click(); // 새 fetchedAt → 최신 14, 최대 14, 표본 2
+  await expect.poll(async () => {
+    stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pulseboard-daily-log-v1") ?? "[]"));
+    return weatherEntry()?.samples;
+  }).toBe(2);
+  expect(weatherEntry()).toMatchObject({ date: "2026-11-03", first: 10, latest: 14, min: 10, max: 14 });
+  expect(stored.filter((entry: { metricKey: string }) => entry.metricKey === "weather-seoul-temp")).toHaveLength(1);
+
+  await page.reload();
+  await expect(page.locator(".daily-log").getByRole("cell", { name: "서울 기온" })).toBeVisible();
+  await page.locator(".daily-log").screenshot({ path: `${SCREENSHOT_DIR}/08_날짜별_자동기록.png` });
 });

@@ -123,6 +123,7 @@ export async function fetchLostArkMarket(itemName = DEFAULT_MARKET_ITEM_NAME): P
     value: {
       headline: `${new Intl.NumberFormat("ko-KR").format(item.CurrentMinPrice)} 골드`,
       subline: item.Name,
+      metric: { key: `lostark-market:${item.Name}`, label: `거래장 ${item.Name} 최저가`, value: item.CurrentMinPrice, unit: "골드" },
       trend: change > 0 ? "up" : change < 0 ? "down" : "flat",
       details: [
         { label: "최근 거래가", value: `${new Intl.NumberFormat("ko-KR").format(item.RecentPrice)} 골드` },

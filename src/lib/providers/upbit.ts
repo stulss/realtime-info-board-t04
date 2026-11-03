@@ -39,6 +39,7 @@ export async function fetchUpbitTicker(): Promise<WidgetPayload> {
     value: {
       headline: new Intl.NumberFormat("ko-KR", { style: "currency", currency: "KRW", maximumFractionDigits: 0 }).format(ticker.trade_price),
       subline: "BTC / KRW",
+      metric: { key: "upbit-btc-krw", label: "Upbit BTC/KRW", value: ticker.trade_price, unit: "KRW" },
       trend: changePercent > 0 ? "up" : changePercent < 0 ? "down" : "flat",
       details: [{ label: "24시간", value: `${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%` }],
     },

@@ -36,8 +36,17 @@ export type WidgetData<T> = {
   };
 };
 
+export type WidgetMetric = {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+};
+
 export type WidgetValue = {
   headline: string;
+  /** 날짜별 기록에 저장할 대표 수치(선택). 없으면 기록하지 않는다. */
+  metric?: WidgetMetric;
   subline?: string;
   trend?: "up" | "down" | "flat";
   details?: Array<{ label: string; value: string }>;
