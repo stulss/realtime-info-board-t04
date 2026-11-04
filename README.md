@@ -6,7 +6,7 @@
 
 날씨·미세먼지·환율·비트코인·공휴일을 한곳에 모으고, 매일의 값을 자동으로 기록해 추세로 보여 줍니다.
 
-[**라이브 데모**](https://realtime-info-board.vercel.app/) · [데이터 출처·개인정보](https://realtime-info-board.vercel.app/about) · [장애 대응 데모](https://realtime-info-board.vercel.app/verification)
+[**라이브 데모**](https://realtime-info-board-t04.vercel.app/) · [데이터 출처·개인정보](https://realtime-info-board-t04.vercel.app/about) · [장애 대응 데모](https://realtime-info-board-t04.vercel.app/verification)
 
 ![Next.js](https://img.shields.io/badge/Next.js-App_Router-000?logo=nextdotjs) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=fff) ![Tests](https://img.shields.io/badge/tests-108_unit_+_24_e2e-2ea043) ![Lighthouse](https://img.shields.io/badge/Lighthouse-98_·_100_·_100_·_100-0cce6b?logo=lighthouse&logoColor=fff) ![a11y](https://img.shields.io/badge/axe--core-0_violations-5a2ca0)
 
@@ -96,7 +96,7 @@ Lighthouse가 총 차단 시간(TBT) 2.1초를 지적했습니다. 원인은 과
 | 성능·SEO | Lighthouse(모바일 에뮬레이션, 프로덕션 빌드) 성능 98 · 접근성 100 · 모범 사례 100 · SEO 100, TBT 140ms, CLS 0.01 |
 | 보안 | HSTS·X-Frame-Options·Referrer-Policy·Permissions-Policy 등, API 키는 서버 환경변수로만 사용 |
 
-외부 API 장애를 먼저 설계했습니다. 장애 5종(시간 초과·인증 실패·호출 제한·오프라인·응답 형식 변경)은 [장애 대응 데모](https://realtime-info-board.vercel.app/verification)에서 직접 재현·복구해 볼 수 있습니다.
+외부 API 장애를 먼저 설계했습니다. 장애 5종(시간 초과·인증 실패·호출 제한·오프라인·응답 형식 변경)은 [장애 대응 데모](https://realtime-info-board-t04.vercel.app/verification)에서 직접 재현·복구해 볼 수 있습니다.
 
 ## 실행
 
@@ -119,7 +119,7 @@ PORTFOLIO_SHOTS=1 npx playwright test portfolio-shots   # README 스크린샷 �
 
 ## 데이터 출처와 이용 조건
 
-Open-Meteo(CC BY 4.0), 기상청·에어코리아·수출입은행(공공데이터포털), Upbit, Frankfurter(ECB 참조환율), Nager.Date, BigDataCloud. 자세한 조건과 개인정보 처리 방식은 [/about](https://realtime-info-board.vercel.app/about)에 있습니다.
+Open-Meteo(CC BY 4.0), 기상청·에어코리아·수출입은행(공공데이터포털), Upbit, Frankfurter(ECB 참조환율), Nager.Date, BigDataCloud. 자세한 조건과 개인정보 처리 방식은 [/about](https://realtime-info-board-t04.vercel.app/about)에 있습니다.
 
 > ⚠️ **상업 운영 시 주의**: Open-Meteo 무료 API는 **비상업적 이용 한정**입니다. 상업 서비스로 운영하려면 상업용 구독 또는 대체 공급자가 필요합니다. 각 공급자의 약관은 변경될 수 있어 공개 전 최신 조건을 확인해야 합니다.
 
