@@ -46,6 +46,9 @@
 <tr>
 <td colspan="2"><img src="docs/portfolio/dashboard-dark.png" alt="다크 모드" width="100%"></td>
 </tr>
+<tr>
+<td colspan="2"><img src="docs/portfolio/resilience.png" alt="장애 대응 데모: 장애 5종 재현과 복구" width="100%"></td>
+</tr>
 </table>
 
 ## 아키텍처
