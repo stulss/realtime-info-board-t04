@@ -111,9 +111,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // 첫 렌더는 서버와 같은 기본 위치로 맞추고(하이드레이션 일치), 마운트 후 저장값·현재 위치로 전환한다.
+  // 사용자 동작 없이 권한 창을 띄우지 않는다: 저장된 위치가 있거나 브라우저 권한이 이미 "허용"일 때만 자동으로 쓴다.
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => {
+    queueMicrotask(async () => {
       if (cancelled) return;
       const saved = readSaved();
       if (saved?.mode === "default") {
@@ -123,8 +124,15 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       if (saved?.mode === "device") {
         setPlace(saved.place);
         setMode("device");
+        locate();
+        return;
       }
-      locate();
+      try {
+        const status = await navigator.permissions?.query({ name: "geolocation" });
+        if (!cancelled && status?.state === "granted") locate();
+      } catch {
+        // Permissions API가 없으면 기본 위치(서울)로 두고 버튼으로 안내한다.
+      }
     });
     return () => { cancelled = true; };
   }, [locate]);
@@ -137,13 +145,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 }
 
 const MODE_TEXT: Record<LocationMode, string> = {
-  idle: "위치 확인 준비 중",
+  idle: "서울 기준 · 내 위치로 바꿔 보세요",
   locating: "내 위치 확인 중…",
   device: "내 위치 기준",
   default: "기본 위치(서울)",
-  denied: "위치 권한이 꺼져 있어 서울 기준 · 주소창의 위치 권한을 허용하면 내 위치로 볼 수 있어요",
-  unavailable: "위치를 가져오지 못해 서울 기준으로 표시합니다",
-  unsupported: "이 브라우저는 위치 기능을 지원하지 않아 서울 기준으로 표시합니다",
+  denied: "위치 권한이 꺼져 있어요 · 서울 기준",
+  unavailable: "위치를 못 가져와 서울 기준",
+  unsupported: "위치 기능 미지원 · 서울 기준",
 };
 
 /** 헤더의 위치 표시 칩. */
@@ -152,13 +160,12 @@ export function LocationChip() {
   const canUseDevice = mode !== "device" && mode !== "locating" && mode !== "unsupported";
   return (
     <div className="loc-chip" data-mode={mode} role="group" aria-label="날씨 기준 위치">
-      <span className="loc-chip__pin" aria-hidden="true">⌖</span>
       <div className="loc-chip__text">
-        <strong>{place.name}</strong>
+        <span className="sr-only">{place.name} </span>
         <small>{MODE_TEXT[mode]}</small>
       </div>
       {canUseDevice && (
-        <button type="button" onClick={useDevice}>내 위치로 보기</button>
+        <button type="button" onClick={useDevice}>내 위치 사용</button>
       )}
       {mode === "device" && (
         <button type="button" onClick={useDefault} title="위치 대신 서울 날씨를 봅니다">서울로 보기</button>

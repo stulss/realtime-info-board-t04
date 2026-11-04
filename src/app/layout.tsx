@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { QueryProvider } from "@/components/query-provider";
+import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
 import "./enhancements.css";
+import "./sky.css";
 
 const TITLE = "Daylog — 개인 맞춤형 실시간 정보판";
 const DESCRIPTION = "내 위치의 날씨·대기질부터 시세·환율·지진·우주날씨까지. 출처와 시각을 숨기지 않고, 날짜별 기록을 자동으로 쌓아 3D로 보여 주는 실시간 정보판.";

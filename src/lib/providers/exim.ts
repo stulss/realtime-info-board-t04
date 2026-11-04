@@ -28,7 +28,7 @@ function searchDate(daysAgo = 0): string {
 
 export async function fetchExchangeRate(currency: ExchangeCurrency = DEFAULT_EXCHANGE_CURRENCY): Promise<WidgetPayload> {
   const apiKey = process.env.EXIM_SERVICE_KEY;
-  if (!apiKey) throw new ProviderHttpError("EXIM_SERVICE_KEY 환경변수 설정이 필요합니다.", 500);
+  if (!apiKey) throw new ProviderHttpError("EXIM_SERVICE_KEY 환경변수 설정이 필요합니다.", 401);
 
   let matched: EximRate | undefined;
   let publishedDate = searchDate();

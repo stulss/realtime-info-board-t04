@@ -127,22 +127,29 @@ export type DailyClose = {
  * 저장값이 원자료와 다르면 원자료로 바로잡는다.
  */
 export function applyDailyCloses(entries: DailyLogEntry[], closes: DailyClose[], now: Date = new Date()): DailyLogEntry[] {
-  let result = entries;
+  // 수백 건을 한 번에 채울 때도 느려지지 않도록 id → 항목 Map으로 한 번만 훑고, 정렬·정리는 마지막에 한 번만 한다(O(n log n)).
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  let changed = false;
   for (const close of closes) {
     if (!Number.isFinite(close.value) || !/^\d{4}-\d{2}-\d{2}$/.test(close.date)) continue;
     const id = `${close.metricKey}:${close.date}`;
-    const existing = result.find((entry) => entry.id === id);
+    const existing = byId.get(id);
     const min = Number.isFinite(close.min) ? Math.min(close.min!, close.value) : close.value;
     const max = Number.isFinite(close.max) ? Math.max(close.max!, close.value) : close.value;
     if (existing?.closed && existing.latest === close.value && existing.min === min && existing.max === max && existing.unit === close.unit) continue;
-    result = commit(result, {
+    byId.set(id, {
       id, metricKey: close.metricKey, label: close.label, unit: close.unit, date: close.date,
       first: close.value, latest: close.value, min, max,
       samples: 1, firstAt: close.sourceTimestamp, updatedAt: now.toISOString(), lastFetchedAt: close.fetchedAt,
       closed: true,
-    }, now);
+    });
+    changed = true;
   }
-  return result;
+  if (!changed) return entries;
+  const cutoff = toKstDate(new Date(now.getTime() - DAILY_LOG_RETENTION_DAYS * 86_400_000));
+  return [...byId.values()]
+    .filter((entry) => entry.date >= cutoff)
+    .sort((a, b) => b.date.localeCompare(a.date) || a.label.localeCompare(b.label, "ko"));
 }
 
 /** 직전 값 대비 변화를 "+3.1%"/"−0.4%" 형태로(이전이 0이면 절대 변화). */

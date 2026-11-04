@@ -1,16 +1,11 @@
 import type { WidgetPayload } from "@/types/widget";
 import { fetchJson, ProviderHttpError } from "@/lib/server/http";
 import { pm25Grade } from "@/lib/air-grade";
+import { weatherLabel } from "@/lib/sky";
 import { DEFAULT_PLACE, isInKorea, placeKey, type Place } from "@/lib/location";
 
 export { pm25Grade };
 
-const WMO: Record<number, string> = {
-  0: "맑음", 1: "대체로 맑음", 2: "구름 조금", 3: "흐림", 45: "안개", 48: "서리 안개",
-  51: "약한 이슬비", 53: "이슬비", 55: "강한 이슬비", 61: "약한 비", 63: "비", 65: "강한 비",
-  71: "약한 눈", 73: "눈", 75: "강한 눈", 80: "소나기", 81: "강한 소나기", 82: "매우 강한 소나기",
-  95: "뇌우", 96: "우박 동반 뇌우", 99: "강한 우박 동반 뇌우",
-};
 
 type Current<T> = { utc_offset_seconds?: number; current: { time: string } & T };
 
@@ -53,10 +48,10 @@ export function offsetOf(body: { utc_offset_seconds?: number }, place: Place): n
 
 export async function fetchWeather(place: Place = DEFAULT_PLACE): Promise<WidgetPayload> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}`
-    + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&timezone=auto";
+    + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m,is_day&timezone=auto";
   const body = await fetchJson<Current<{
     temperature_2m: number; apparent_temperature: number; relative_humidity_2m: number;
-    precipitation: number; weather_code: number; wind_speed_10m: number;
+    precipitation: number; weather_code: number; wind_speed_10m: number; is_day?: number;
   }>>(url);
   const c = body?.current;
   if (!c || !isNum(c.temperature_2m) || !isNum(c.weather_code) || typeof c.time !== "string") {
@@ -65,9 +60,16 @@ export async function fetchWeather(place: Place = DEFAULT_PLACE): Promise<Widget
   return {
     value: {
       headline: `${c.temperature_2m.toFixed(1)}°C`,
-      subline: `${place.name} · ${WMO[c.weather_code] ?? `날씨 코드 ${c.weather_code}`}`,
+      subline: `${place.name} · ${weatherLabel(c.weather_code)}`,
       metric: { key: `weather-temp@${placeKey(place)}`, label: `${place.name} 기온`, value: c.temperature_2m, unit: "°C" },
-      facts: { temperature: c.temperature_2m },
+      facts: {
+        temperature: c.temperature_2m,
+        apparent: c.apparent_temperature,
+        humidity: c.relative_humidity_2m,
+        wind: c.wind_speed_10m,
+        weatherCode: c.weather_code,
+        isDay: c.is_day === 0 ? 0 : 1,
+      },
       details: [
         { label: "체감", value: `${c.apparent_temperature}°C` },
         { label: "습도", value: `${c.relative_humidity_2m}%` },

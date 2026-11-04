@@ -62,6 +62,15 @@ export default function AboutPage() {
         </div>
       </section>
 
+      <section aria-labelledby="setup-heading" className="about-block" id="setup">
+        <h2 id="setup-heading">공식 데이터 연결하기 (선택)</h2>
+        <p className="about-note">키가 없어도 날씨·예보·대기질(Open-Meteo), 비트코인, 공휴일, 환율(국제 참조환율)은 바로 동작합니다. 아래 키를 서버 환경변수로 등록하면 한국 공식 데이터가 추가로 표시됩니다.</p>
+        <ul>
+          <li><strong>DATA_GO_KR_SERVICE_KEY</strong>: <a href="https://www.data.go.kr" target="_blank" rel="noreferrer">공공데이터포털</a>에서 &ldquo;기상청 단기예보 조회서비스&rdquo;와 &ldquo;에어코리아 대기오염정보&rdquo;를 각각 활용신청(대부분 자동 승인)한 뒤 일반 인증키를 등록합니다. → 기상청 실황, 에어코리아 시·도 평균 활성화</li>
+          <li><strong>EXIM_SERVICE_KEY</strong>: 한국수출입은행 Open API 인증키. → 환율이 국제 참조환율에서 한국 고시환율(매매기준율)로 바뀝니다.</li>
+        </ul>
+      </section>
+
       <section aria-labelledby="notes-heading" className="about-block">
         <h2 id="notes-heading">알아 두세요</h2>
         <ul>

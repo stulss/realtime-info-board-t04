@@ -20,9 +20,9 @@ export default function VerificationPage() {
       </header>
       <section className="hero hero--compact">
         <div>
-          <p className="eyebrow">VISUAL VERIFICATION</p>
-          <h1>T04 상태별 카드 검증</h1>
-          <p className="hero-copy">과제 카드 5개를 순서대로 읽고 장애 재현과 복구를 공개 화면에서 확인합니다.</p>
+          <p className="eyebrow">FAILURE-STATE SIMULATOR · T04 상태별 카드 검증</p>
+          <h1>장애 상태 시뮬레이터</h1>
+          <p className="hero-copy">장애 5종을 직접 재현하고, 마지막 정상값이 유지되는지, 다시 시도하면 복구되는지 확인해 보세요. (과제 T04의 카드 5개 검증 기준)</p>
         </div>
       </section>
 

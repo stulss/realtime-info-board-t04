@@ -5,11 +5,12 @@ import { FAILURE_LABELS } from "@/lib/client/widget-state";
 import { compareToPrevious, fmtNum, formatDelta, ratio, type DailyLogEntry } from "@/lib/history/daily-log";
 import { formatAbsoluteTime, formatRelativeTime } from "@/lib/time";
 import type { WidgetPayload } from "@/types/widget";
+import { Icon } from "./icons";
 import { Sparkline } from "./sparkline";
 import { StatusBadge } from "./status-badge";
 
 type WidgetTileProps = {
-  icon: string;
+  icon: ReactNode;
   name: string;
   data: WidgetPayload;
   isRefreshing?: boolean;
@@ -60,7 +61,7 @@ export function WidgetTile({ icon, name, data, isRefreshing = false, onRefresh, 
           : <StatusBadge status={status} />}
         {onRefresh && (
           <button className="tile__refresh" type="button" onClick={refresh} disabled={isRefreshing || cooling} aria-label={`${name} 새로고침`} title={cooling ? "10초 후 다시 갱신할 수 있습니다" : "새로고침"}>
-            <span aria-hidden="true">↻</span>
+            <Icon name="refresh" size={14} />
           </button>
         )}
       </header>
@@ -105,7 +106,7 @@ export function WidgetTile({ icon, name, data, isRefreshing = false, onRefresh, 
         </span>
         {!isEmpty || controls ? (
           <button className="tile__more" type="button" aria-expanded={open} aria-controls={detailId} onClick={() => setOpen((value) => !value)}>
-            {open ? "접기 ▴" : "상세 ▾"}
+            {open ? "접기" : "상세"}<Icon name={open ? "up" : "down"} size={12} />
           </button>
         ) : null}
       </footer>

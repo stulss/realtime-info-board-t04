@@ -101,6 +101,21 @@ export async function airQualityHistory(place: Place, from: string, to: string):
   return points;
 }
 
+/* ---------- 환율(키 없는 국제 참조환율) ---------- */
+
+export async function usdKrwHistory(from: string, to: string): Promise<HistoryPoint[]> {
+  const rows = await fetchJson<Array<{ date: string; rate: number }>>(
+    `https://api.frankfurter.dev/v2/rates?from=${from}&to=${to}&base=USD&quotes=KRW`,
+    { timeoutMs: 15_000 },
+  );
+  if (!Array.isArray(rows)) {
+    throw new ProviderHttpError("Frankfurter 과거 환율 응답 형식이 변경되었습니다.", undefined, undefined, "schema_changed");
+  }
+  return rows
+    .filter((row) => typeof row?.date === "string" && isNum(row.rate) && inRange(row.date, from, to))
+    .map((row) => ({ metricKey: "fx:USD", label: "USD/KRW 참조환율", unit: "KRW", date: row.date, value: row.rate, sourceTimestamp: stamp(row.date) }));
+}
+
 /* ---------- 합치기 + 서버 캐시 ---------- */
 
 const TTL_MS = 6 * 60 * 60_000;
@@ -114,6 +129,7 @@ export async function buildHistory(place: Place, fromParam: string | null, now: 
   const jobs: Array<[string, () => Promise<HistoryPoint[]>]> = [
     ["Open-Meteo 기온", () => weatherHistory(place, from, to)],
     ["Open-Meteo 대기질", () => airQualityHistory(place, from, to)],
+    ["Frankfurter USD/KRW", () => usdKrwHistory(from, to)],
   ];
   const settled = await Promise.allSettled(jobs.map(([, job]) => job()));
   const points: HistoryPoint[] = [];

@@ -47,7 +47,7 @@ export function TrendChart({ series, unit, label }: { series: DailyLogEntry[]; u
       {series.map((entry, index) => (
         <g key={entry.id} className="trend-chart__point" style={{ animationDelay: `${Math.min(index * 20, 600)}ms` }}>
           <title>{`${entry.date} · 최신 ${fmt(entry.latest)} ${unit} · 최소 ${fmt(entry.min)} · 최대 ${fmt(entry.max)} · ${entry.samples}회`}</title>
-          <circle cx={x(index)} cy={y(entry.latest)} r={dense ? 2.4 : 4.5} />
+          <circle className={dense && index !== series.length - 1 ? "trend-chart__hit" : undefined} cx={x(index)} cy={y(entry.latest)} r={dense ? (index === series.length - 1 ? 4.5 : 5) : 4.5} />
           {index % labelStep === 0 || index === series.length - 1 ? (
             <text className="trend-chart__axis" x={x(index)} y={H - 10} textAnchor="middle">{entry.date.slice(5)}</text>
           ) : null}

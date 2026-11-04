@@ -70,7 +70,7 @@ describe("날짜별 기록", () => {
 
   it("확정 일별 값(일봉 종가)은 접속하지 않은 날도 하루 한 줄로 자동 기록된다", () => {
     const close = (date: string, value: number) => ({
-      metricKey: "upbit-btc-krw-close", label: "Upbit BTC/KRW 일봉 종가", unit: "KRW", date, value,
+      metricKey: "upbit-btc-krw", label: "Upbit BTC/KRW", unit: "KRW", date, value,
       sourceTimestamp: `${date}T09:00:00+09:00`, fetchedAt: "2026-11-03T01:30:00.000Z",
     });
     const filled = applyDailyCloses([], [close("2026-11-02", 158), close("2026-11-01", 150)], NOW);
@@ -95,6 +95,20 @@ describe("날짜별 기록", () => {
     const bad = { metricKey: "k", label: "종가", unit: "KRW", sourceTimestamp: "", fetchedAt: "" };
     const result = applyDailyCloses(live, [{ ...bad, date: "11/02", value: 5 }, { ...bad, date: "2026-11-02", value: Number.NaN }, { ...bad, date: "2026-11-02", value: 7 }], NOW);
     expect(result.map((entry) => entry.metricKey).sort()).toEqual(["k", "live"]);
+  });
+
+  it("수천 건을 한 번에 채워도 빠르다(O(n log n))", () => {
+    const closes = Array.from({ length: 3000 }, (_, index) => ({
+      metricKey: `m${index % 8}`, label: `지표${index % 8}`, unit: "u",
+      date: new Date(Date.UTC(2026, 7, 1) + Math.floor(index / 8) * 86_400_000).toISOString().slice(0, 10),
+      value: index, sourceTimestamp: "x", fetchedAt: "y",
+    }));
+    const started = performance.now();
+    const filled = applyDailyCloses([], closes, NOW);
+    expect(performance.now() - started).toBeLessThan(250);
+    expect(filled).toHaveLength(3000);
+    expect(new Set(filled.map((entry) => entry.id)).size).toBe(3000);
+    expect(filled[0].date >= filled[filled.length - 1].date).toBe(true);
   });
 
   it("formatDelta는 부호·퍼센트·절대값 대체를 처리한다", () => {

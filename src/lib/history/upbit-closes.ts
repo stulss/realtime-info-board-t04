@@ -2,8 +2,9 @@ import { isDailyHistoryResponse } from "./daily-records";
 import type { DailyClose } from "./daily-log";
 import { HISTORY_START_DATE, upbitDailyCount } from "./range";
 
-export const UPBIT_CLOSE_METRIC_KEY = "upbit-btc-krw-close";
-export const UPBIT_CLOSE_LABEL = "Upbit BTC/KRW 일봉 종가";
+/** 실시간 위젯과 같은 키·이름을 써서 과거(일봉 종가) → 오늘(실시간)이 하나의 연속된 기록이 되게 한다. */
+export const UPBIT_CLOSE_METRIC_KEY = "upbit-btc-krw";
+export const UPBIT_CLOSE_LABEL = "Upbit BTC/KRW";
 
 /** 화면에 보여 줄 원자료 주소(시작일부터 오늘까지 덮는 개수). */
 export function upbitSourceUrl(now: Date = new Date()): string {

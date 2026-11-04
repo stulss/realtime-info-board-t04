@@ -34,7 +34,7 @@ body {
     radial-gradient(circle at 88% 2%, color-mix(in srgb, var(--accent) 18%, transparent) 0, transparent 26rem),
     var(--paper);
   color: var(--ink);
-  font-family: Arial, "Noto Sans KR", sans-serif;
+  font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Noto Sans KR", sans-serif;
   transition: background-color 180ms ease, color 180ms ease;
 }
 

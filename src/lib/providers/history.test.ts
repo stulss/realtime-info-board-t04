@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { addDays, daysBetweenDates, resolveRange, upbitDailyCount } from "@/lib/history/range";
 import { applyDailyCloses } from "@/lib/history/daily-log";
-import { airQualityHistory, buildHistory, getHistory, weatherHistory } from "./history";
+import { airQualityHistory, buildHistory, getHistory, usdKrwHistory, weatherHistory } from "./history";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -55,6 +55,17 @@ describe("과거 원자료 → 하루 한 줄", () => {
 
 
 
+  it("환율: 시작일~어제 범위만 남기고 오늘 값은 실시간에 맡긴다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json([
+      { date: "2026-08-01", base: "USD", quote: "KRW", rate: 1437.12 }, { date: "2026-11-03", base: "USD", quote: "KRW", rate: 1339 },
+    ])));
+    const fx = await usdKrwHistory("2026-08-01", "2026-11-02");
+    expect(fx).toHaveLength(1);
+    expect(fx[0]).toMatchObject({ metricKey: "fx:USD", value: 1437.12, unit: "KRW" });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ unexpected: true })));
+    await expect(usdKrwHistory("2026-08-01", "2026-11-02")).rejects.toMatchObject({ kind: "schema_changed" });
+  });
+
   const weatherBody = { daily: { time: ["2026-08-01", "2026-08-02"], temperature_2m_mean: [20, 21], temperature_2m_max: [25, 26], temperature_2m_min: [15, 16] } };
   const airBody = {
     hourly: {
@@ -74,7 +85,7 @@ describe("과거 원자료 → 하루 한 줄", () => {
     expect(result.points.filter((point) => point.metricKey === "weather-temp@35.2,129.1")).toHaveLength(2);
     expect(result.sources.filter((source) => source.ok).map((source) => source.name)).toEqual(["Open-Meteo 기온"]);
     const failed = result.sources.filter((source) => !source.ok);
-    expect(failed.map((source) => source.name)).toEqual(["Open-Meteo 대기질"]);
+    expect(failed.map((source) => source.name)).toEqual(["Open-Meteo 대기질", "Frankfurter USD/KRW"]);
     expect(failed[0].error).toBeTruthy();
   });
 

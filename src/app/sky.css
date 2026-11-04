@@ -1,0 +1,74 @@
+/* ===== 하늘 히어로: 내 위치 날씨로 장면이 바뀐다 ===== */
+.sky { --sky-ink: #fff; --sky-glass: rgba(6,22,56,.34); --sky-glass-line: rgba(255,255,255,.3);
+  --sky-a: #1648b8; --sky-b: #2a74cc; --sky-c: #5aa4ea;
+  position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-rows: auto 1fr; gap: 18px;
+  min-height: clamp(360px, 46vw, 460px); margin: 6px 0 22px; padding: clamp(18px, 3vw, 34px);
+  border-radius: 28px; color: var(--sky-ink); text-shadow: 0 1px 14px rgba(8, 20, 50, .22);
+  background: linear-gradient(180deg, var(--sky-a) 0%, var(--sky-b) 64%, var(--sky-c) 100%);
+  box-shadow: 0 34px 80px rgba(20, 50, 110, .22); transition: background .6s ease; }
+.sky[data-sky="loading"] { --sky-a: #5d86b8; --sky-b: #8fb0d6; --sky-c: #c3d6ea; }
+.sky[data-sky="clear-night"] { --sky-a: #070b2b; --sky-b: #17236a; --sky-c: #3a3f93; }
+.sky[data-sky="cloudy"] { --sky-a: #46566c; --sky-b: #6b7c95; --sky-c: #8795ab; }
+.sky[data-sky="rain"] { --sky-a: #2b3a4f; --sky-b: #4d637e; --sky-c: #7489a3; }
+.sky[data-sky="storm"] { --sky-a: #161a26; --sky-b: #2d3447; --sky-c: #4b546b; }
+.sky[data-sky="snow"] { --sky-ink: #11202f; --sky-glass: rgba(255,255,255,.55); --sky-glass-line: rgba(255,255,255,.8); --sky-a: #8ea6bf; --sky-b: #c3d3e3; --sky-c: #eef3f8; text-shadow: 0 1px 10px rgba(255,255,255,.5); }
+.sky[data-sky="fog"] { --sky-ink: #16212b; --sky-glass: rgba(255,255,255,.5); --sky-glass-line: rgba(255,255,255,.75); --sky-a: #8996a3; --sky-b: #b4bdc7; --sky-c: #dbe0e6; text-shadow: 0 1px 10px rgba(255,255,255,.45); }
+
+/* 효과 레이어 */
+.sky__fx { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.sky__fx i { position: absolute; display: block; }
+.sky__fx i:nth-child(2), .sky__fx i:nth-child(3) { width: 46%; height: 26%; border-radius: 999px; background: rgba(255,255,255,.34); filter: blur(26px); opacity: 0; }
+.sky__fx i:nth-child(2) { top: 14%; left: -10%; animation: drift-x 46s linear infinite; }
+.sky__fx i:nth-child(3) { top: 42%; left: 40%; width: 56%; animation: drift-x 62s linear infinite reverse; }
+.sky[data-sky="clear-day"] .sky__fx i:nth-child(1), .sky[data-sky="loading"] .sky__fx i:nth-child(1) { top: 24%; right: 16%; width: 96px; height: 96px; border-radius: 50%; background: radial-gradient(circle at 38% 38%, #fffef5 0%, #fff0b8 62%, #ffd978 100%); box-shadow: 0 0 80px 34px rgba(255,238,170,.6), 0 0 220px 130px rgba(255,236,170,.22); animation: glow 7s ease-in-out infinite alternate; }
+.sky[data-sky="clear-day"] .sky__fx i:nth-child(2), .sky[data-sky="clear-day"] .sky__fx i:nth-child(3), .sky[data-sky="cloudy"] .sky__fx i:nth-child(2), .sky[data-sky="cloudy"] .sky__fx i:nth-child(3) { opacity: .75; }
+.sky[data-sky="cloudy"] .sky__fx i:nth-child(2), .sky[data-sky="cloudy"] .sky__fx i:nth-child(3) { background: rgba(255,255,255,.3); }
+.sky[data-sky="clear-night"] .sky__fx i:nth-child(1) { inset: 0; background-image: radial-gradient(2px 2px at 12% 22%, #fff, transparent), radial-gradient(1.6px 1.6px at 28% 62%, #fff, transparent), radial-gradient(2.2px 2.2px at 44% 14%, #fff, transparent), radial-gradient(1.6px 1.6px at 61% 48%, #fff, transparent), radial-gradient(2px 2px at 77% 24%, #fff, transparent), radial-gradient(1.6px 1.6px at 90% 66%, #fff, transparent), radial-gradient(1.4px 1.4px at 35% 82%, #fff, transparent), radial-gradient(1.4px 1.4px at 84% 10%, #fff, transparent), radial-gradient(1.4px 1.4px at 52% 36%, #fff, transparent), radial-gradient(1.2px 1.2px at 6% 70%, #fff, transparent), radial-gradient(1.8px 1.8px at 68% 78%, #fff, transparent), radial-gradient(1.2px 1.2px at 20% 8%, #fff, transparent); animation: twinkle 5s ease-in-out infinite alternate; }
+.sky[data-sky="clear-night"] .sky__fx i:nth-child(2) { opacity: 1; top: 30%; left: auto; right: 16%; width: 84px; height: 84px; background: radial-gradient(circle at 36% 36%, #fffbe8, #e9e3c4 60%, #cfc9a6); filter: none; box-shadow: 0 0 60px 18px rgba(240,236,200,.28); animation: none; }
+.sky[data-sky="rain"] .sky__fx i:nth-child(1), .sky[data-sky="storm"] .sky__fx i:nth-child(1) { inset: -20% 0 0; background-image: repeating-linear-gradient(105deg, rgba(255,255,255,0) 0 14px, rgba(255,255,255,.28) 14px 15px, rgba(255,255,255,0) 15px 30px); background-size: 120px 180px; animation: rain-fall .7s linear infinite; opacity: .6; }
+.sky[data-sky="rain"] .sky__fx i:nth-child(2), .sky[data-sky="storm"] .sky__fx i:nth-child(2) { opacity: .5; background: rgba(20,30,50,.5); }
+.sky[data-sky="storm"] .sky__fx i:nth-child(3) { inset: 0; width: auto; height: auto; border-radius: 0; filter: none; background: rgba(255,255,255,.9); opacity: 0; animation: flash 7s ease-in-out infinite; }
+.sky[data-sky="snow"] .sky__fx i:nth-child(1) { inset: -20% 0 0; background-image: radial-gradient(3px 3px at 20% 30%, #fff 60%, transparent), radial-gradient(2.4px 2.4px at 60% 10%, #fff 60%, transparent), radial-gradient(3.2px 3.2px at 80% 60%, #fff 60%, transparent), radial-gradient(2px 2px at 40% 80%, #fff 60%, transparent), radial-gradient(2.6px 2.6px at 10% 70%, #fff 60%, transparent), radial-gradient(1.8px 1.8px at 90% 25%, #fff 60%, transparent), radial-gradient(2.2px 2.2px at 50% 50%, #fff 60%, transparent); background-size: 190px 220px; animation: snow-fall 9s linear infinite; opacity: .9; }
+.sky[data-sky="fog"] .sky__fx i:nth-child(2), .sky[data-sky="fog"] .sky__fx i:nth-child(3) { opacity: .8; background: rgba(255,255,255,.5); filter: blur(34px); }
+
+/* 상단: 날짜 + 위치 + 새로고침 */
+.sky__top { position: relative; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.sky__date { margin: 0; font-size: 12px; font-weight: 800; letter-spacing: .14em; opacity: .9; }
+.sky__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.sky__refresh { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border: 1px solid var(--sky-glass-line); border-radius: 999px; background: var(--sky-glass); color: var(--sky-ink); font-size: 12px; font-weight: 800; cursor: pointer; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); text-shadow: none; }
+.sky__refresh:hover:not(:disabled) { background: color-mix(in srgb, var(--sky-glass) 70%, #fff); }
+.sky__refresh:disabled { opacity: .6; cursor: wait; }
+.sky .loc-chip { max-width: none; padding: 7px 8px 7px 14px; border: 1px solid var(--sky-glass-line); border-radius: 999px; background: var(--sky-glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+.sky .loc-chip__text small { color: var(--sky-ink); opacity: .92; font-size: 11px; text-shadow: none; }
+.sky .loc-chip button { border-color: var(--sky-ink); background: transparent; color: var(--sky-ink); text-shadow: none; }
+.sky .loc-chip button:hover { background: var(--sky-ink); color: var(--sky-b); }
+
+/* 본문: 지명 · 큰 기온 · 상태 · 보조 수치 */
+.sky__main { display: grid; align-content: end; justify-items: start; gap: 2px; }
+.sky__place { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: clamp(18px, 2.2vw, 24px); font-weight: 700; letter-spacing: -.02em; }
+.sky__temp { margin: 0; font-size: clamp(104px, 20vw, 210px); font-weight: 200; line-height: .92; letter-spacing: -.07em; font-variant-numeric: tabular-nums; }
+.sky__temp span { font-weight: 300; opacity: .8; }
+.sky__cond { margin: 0; font-size: clamp(20px, 2.4vw, 28px); font-weight: 650; letter-spacing: -.03em; }
+.sky__cond small { font-size: .62em; font-weight: 500; opacity: .85; }
+.sky__stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.sky__stats div { display: flex; gap: 8px; align-items: baseline; padding: 7px 13px; border: 1px solid var(--sky-glass-line); border-radius: 999px; background: var(--sky-glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); text-shadow: none; }
+.sky__stats dt { font-size: 11px; opacity: .85; }
+.sky__stats dd { margin: 0; font-size: 13px; font-weight: 800; }
+
+@keyframes drift-x { from { transform: translateX(-30%); } to { transform: translateX(150%); } }
+@keyframes glow { from { transform: scale(.94); opacity: .85; } to { transform: scale(1.06); opacity: 1; } }
+@keyframes twinkle { from { opacity: .55; } to { opacity: 1; } }
+@keyframes rain-fall { to { background-position: -40px 180px; } }
+@keyframes snow-fall { to { background-position: 60px 260px; } }
+@keyframes flash { 0%, 92%, 100% { opacity: 0; } 93% { opacity: .55; } 94% { opacity: .05; } 96% { opacity: .4; } }
+
+/* 브리핑·타일 아이콘(Lucide) */
+.briefing__icon { display: inline-flex; color: var(--tone, var(--muted)); }
+.tile__icon { color: var(--ink); }
+.tile__more { display: inline-flex; align-items: center; gap: 2px; }
+.tile__refresh { display: inline-grid; place-items: center; }
+.sky__refresh .spin, .tile__refresh .spin { animation: spin 1s linear infinite; }
+@media (max-width: 680px) {
+  .sky { border-radius: 22px; min-height: 420px; }
+  .sky__top { align-items: flex-start; flex-direction: column; }
+}
