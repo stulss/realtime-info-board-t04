@@ -44,7 +44,27 @@ async function blockHistory(page: import("@playwright/test").Page) {
   await page.route("**/api/history**", (route) => route.fulfill({ status: 503, json: { error: "disabled" } }));
 }
 
+/** 실제 위젯 응답의 조회 시각(=실행 날짜)이 기록에 섞이지 않도록, 모킹하지 않는 위젯은 모두 막는다. 이후에 등록한 라우트가 우선한다. */
+async function isolateWidgets(page: import("@playwright/test").Page) {
+  await page.route("**/api/widgets/**", (route) => route.fulfill({ status: 503, json: { error: "isolated" } }));
+}
+
+/** 실제 위젯 응답을 쓰되 조회 시각만 2026-11-03으로 고정해, 실행 날짜와 상관없이 같은 날짜 기록이 되게 한다. */
+async function pinWidgetDate(page: import("@playwright/test").Page) {
+  await page.route("**/api/widgets/**", async (route) => {
+    try {
+      const response = await route.fetch();
+      const body = await response.json();
+      if (body && typeof body === "object" && "fetchedAt" in body) body.fetchedAt = "2026-11-03T04:00:00.000Z";
+      await route.fulfill({ response, json: body });
+    } catch {
+      await route.fulfill({ status: 503, json: { error: "unavailable" } });
+    }
+  });
+}
+
 async function mockDailyHistory(page: import("@playwright/test").Page) {
+  await isolateWidgets(page);
   await blockHistory(page);
   await page.route("**/api/widgets/upbit-daily-history", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(dailyHistoryFixture) });
@@ -57,8 +77,8 @@ test("상태별 fixture 카드 5개와 투명성 필드를 표시한다", async 
 
   await expect(page.getByRole("heading", { name: "장애 상태 시뮬레이터" })).toBeVisible();
   await expect(page.getByRole("list").locator("li")).toHaveCount(5);
-  await expect(page.getByRole("list").locator("li").nth(0)).toContainText("값의 맥락");
-  await expect(page.getByRole("list").locator("li").nth(4)).toContainText("어제와 비교 검증");
+  await expect(page.getByRole("list").locator("li").nth(0)).toContainText("값에는 맥락");
+  await expect(page.getByRole("list").locator("li").nth(4)).toContainText("이전 값과 비교");
   const fixtures = page.getByLabel("상태별 검증 위젯");
   await expect(fixtures.locator(".widget-card")).toHaveCount(5);
   await expect(fixtures.getByLabel("상태: 정상")).toBeVisible();
@@ -464,6 +484,7 @@ test("7일치 기록이 있으면 타임라인·히트맵·범위 막대·추세
   await page.addInitScript((value) => {
     localStorage.setItem("pulseboard-daily-log-v1", JSON.stringify(value));
   }, entries);
+  await pinWidgetDate(page); // 실제 위젯 응답의 조회 시각을 시드와 같은 날짜로 고정한다
   // 일봉 자동 채움은 막아 시드한 7일만 보이게 한다
   await page.route("**/api/widgets/upbit-daily-history", (route) => route.fulfill({ status: 503, json: { error: "disabled" } }));
   await blockHistory(page);
@@ -614,5 +635,5 @@ test("키가 있으면 기상청·에어코리아 위젯을 요청하고 카드�
   await page.goto("/");
   await expect(page.locator(".tile", { hasText: "기상청" }).first()).toBeVisible();
   await expect(page.locator(".connect-hint")).toHaveCount(0);
-  expect(keyed.length).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => keyed.length).toBeGreaterThanOrEqual(2);
 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { WidgetFailureKind, WidgetPayload } from "@/types/widget";
 
 const SOURCE: WidgetPayload["source"] = {
-  provider: "T04 검증 API",
+  provider: "Daylog 장애 시뮬레이션",
   docsUrl: "/verification",
   endpointTemplate: "GET /api/verification/failure?kind={FAILURE_KIND}",
 };
@@ -18,7 +18,7 @@ const KINDS = new Set<WidgetFailureKind>([
 function normalPayload(): WidgetPayload {
   const fetchedAt = new Date().toISOString();
   return {
-    value: { headline: "검증 API 정상", subline: "다시 시도 복구 완료" },
+    value: { headline: "시뮬레이션 API 정상", subline: "다시 시도 복구 완료" },
     status: "ok",
     source: SOURCE,
     sourceTimestamp: fetchedAt,

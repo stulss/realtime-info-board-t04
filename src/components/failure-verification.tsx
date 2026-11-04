@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { verificationFixtures } from "@/fixtures/widgets";
+import { buildStateFixtures } from "@/fixtures/widgets";
 import {
   FAILURE_LABELS,
   displayPayloadAfterFailure,
@@ -17,15 +17,15 @@ const FAILURE_SCENARIOS: Array<{
   reproduce: string;
   message: string;
 }> = [
-  { kind: "timeout", reproduce: "검증 API가 제한 시간보다 늦게 응답", message: "요청 응답 시간이 초과되었습니다." },
-  { kind: "unauthorized", reproduce: "검증 API가 HTTP 401 반환", message: "API 인증에 실패했습니다." },
-  { kind: "rate_limited", reproduce: "검증 API가 HTTP 429 반환", message: "API 호출 제한에 도달했습니다." },
-  { kind: "offline", reproduce: "검증 API가 연결 끊김 응답 반환", message: "네트워크가 오프라인입니다." },
-  { kind: "schema_changed", reproduce: "검증 API가 필수 필드 없는 JSON 반환", message: "위젯 응답 형식이 변경되었습니다." },
+  { kind: "timeout", reproduce: "시뮬레이션 API가 제한 시간보다 늦게 응답", message: "요청 응답 시간이 초과되었습니다." },
+  { kind: "unauthorized", reproduce: "시뮬레이션 API가 HTTP 401 반환", message: "API 인증에 실패했습니다." },
+  { kind: "rate_limited", reproduce: "시뮬레이션 API가 HTTP 429 반환", message: "API 호출 제한에 도달했습니다." },
+  { kind: "offline", reproduce: "시뮬레이션 API가 연결 끊김 응답 반환", message: "네트워크가 오프라인입니다." },
+  { kind: "schema_changed", reproduce: "시뮬레이션 API가 필수 필드 없는 JSON 반환", message: "위젯 응답 형식이 변경되었습니다." },
 ];
 
 export function FailureVerification() {
-  const baseline = verificationFixtures[2];
+  const [baseline] = useState(() => buildStateFixtures()[2]);
   const [activeKind, setActiveKind] = useState<VerificationKind>("timeout");
   const [hasLastGood, setHasLastGood] = useState(true);
   const [data, setData] = useState<WidgetPayload>(baseline.data);
@@ -56,7 +56,7 @@ export function FailureVerification() {
     <section className="failure-lab" aria-labelledby="failure-lab-heading">
       <div className="section-heading">
         <div><span>03</span><h2 id="failure-lab-heading">장애 5종 재현</h2></div>
-        <p>검증 API 요청 · 정상값 보존 · 오래된 데이터 · 다시 시도</p>
+        <p>버튼을 눌러 장애를 일으키고, 카드 오른쪽의 다시 시도로 복구하세요</p>
       </div>
       <div className="failure-layout">
         <div>
@@ -90,7 +90,7 @@ export function FailureVerification() {
                   <td>{item.reproduce}</td>
                   <td>{item.message}</td>
                   <td>있으면 오래된 데이터, 없으면 빈 상태</td>
-                  <td>검증 API 다시 시도</td>
+                  <td>시뮬레이션 API 다시 시도</td>
                 </tr>
               ))}
             </tbody>

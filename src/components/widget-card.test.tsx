@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { verificationFixtures } from "@/fixtures/widgets";
+import { buildStateFixtures } from "@/fixtures/widgets";
+
+const verificationFixtures = buildStateFixtures(Date.parse("2026-11-03T04:00:00.000Z"));
 import { WidgetCard } from "./widget-card";
 
 describe("WidgetCard", () => {
@@ -22,7 +24,7 @@ describe("WidgetCard", () => {
     const fixture = verificationFixtures[0];
     render(<WidgetCard icon={fixture.icon} name={fixture.name} data={fixture.data} />);
     expect(screen.getByText("API 미제공")).toBeInTheDocument();
-    expect(screen.getByText("점검 공지 확인")).toBeInTheDocument();
+    expect(screen.getByText("측정소 점검 안내")).toBeInTheDocument();
     vi.useRealTimers();
   });
 

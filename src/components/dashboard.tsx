@@ -212,7 +212,6 @@ function DashboardView() {
       <header className="topbar">
         <div className="brand"><span className="brand-mark">D</span><span>Daylog</span></div>
         <div className="topbar-actions">
-          <Link className="text-link hide-mobile" href="/verification">장애 시뮬레이터</Link>
           <button className="icon-button" type="button" onClick={toggleTheme} aria-label="테마 전환" suppressHydrationWarning>{isDark ? "☀" : "◐"}</button>
         </div>
       </header>
@@ -280,7 +279,7 @@ function DashboardView() {
 
       <footer className="page-footer">
         <span>Daylog</span>
-        <p>데이터는 각 공급자 API의 제공 범위와 갱신 주기를 따릅니다. <Link href="/about">데이터 출처·개인정보</Link></p>
+        <p>데이터는 각 공급자 API의 제공 범위와 갱신 주기를 따릅니다. <Link href="/about">데이터 출처·개인정보</Link> · <Link href="/verification">장애 대응 데모</Link></p>
       </footer>
     </main>
   );

@@ -6,7 +6,7 @@
 
 날씨·미세먼지·환율·비트코인·공휴일을 한곳에 모으고, 매일의 값을 자동으로 기록해 추세로 보여 줍니다.
 
-[**라이브 데모**](https://realtime-info-board.vercel.app/) · [데이터 출처·개인정보](https://realtime-info-board.vercel.app/about) · [장애 상태 시뮬레이터](https://realtime-info-board.vercel.app/verification)
+[**라이브 데모**](https://realtime-info-board.vercel.app/) · [데이터 출처·개인정보](https://realtime-info-board.vercel.app/about) · [장애 대응 데모](https://realtime-info-board.vercel.app/verification)
 
 ![Next.js](https://img.shields.io/badge/Next.js-App_Router-000?logo=nextdotjs) ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=fff) ![Tests](https://img.shields.io/badge/tests-108_unit_+_24_e2e-2ea043) ![Lighthouse](https://img.shields.io/badge/Lighthouse-98_·_100_·_100_·_100-0cce6b?logo=lighthouse&logoColor=fff) ![a11y](https://img.shields.io/badge/axe--core-0_violations-5a2ca0)
 
@@ -96,7 +96,7 @@ Lighthouse가 총 차단 시간(TBT) 2.1초를 지적했습니다. 원인은 과
 | 성능·SEO | Lighthouse(모바일 에뮬레이션, 프로덕션 빌드) 성능 98 · 접근성 100 · 모범 사례 100 · SEO 100, TBT 140ms, CLS 0.01 |
 | 보안 | HSTS·X-Frame-Options·Referrer-Policy·Permissions-Policy 등, API 키는 서버 환경변수로만 사용 |
 
-장애 5종(시간 초과·인증 실패·호출 제한·오프라인·응답 형식 변경)은 [장애 상태 시뮬레이터](https://realtime-info-board.vercel.app/verification)에서 직접 재현·복구해 볼 수 있습니다.
+외부 API 장애를 먼저 설계했습니다. 장애 5종(시간 초과·인증 실패·호출 제한·오프라인·응답 형식 변경)은 [장애 대응 데모](https://realtime-info-board.vercel.app/verification)에서 직접 재현·복구해 볼 수 있습니다.
 
 ## 실행
 

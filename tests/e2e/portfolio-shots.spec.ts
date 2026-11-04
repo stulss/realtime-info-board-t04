@@ -36,6 +36,14 @@ for (const [name, code, isDay] of scenes) {
   });
 }
 
+test("장애 대응 데모", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/verification");
+  await page.getByRole("button", { name: /시간 초과/ }).click();
+  await page.waitForTimeout(1_800);
+  await page.screenshot({ path: `${OUT}/resilience.png`, fullPage: true });
+});
+
 test("정보판 전체(라이트·다크)와 모바일", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
